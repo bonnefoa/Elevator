@@ -107,7 +107,6 @@ func MGet(db *Db, request *Request) (*Response, error) {
 	}
 
 	response = NewSuccessResponse(data)
-	forwardResponse(response, request)
 
 	db.Connector.ReleaseSnapshot(snapshot)
 
@@ -136,7 +135,6 @@ func Range(db *Db, request *Request) (*Response, error) {
 	}
 
 	response = NewSuccessResponse(data)
-	forwardResponse(response, request)
 
 	db.Connector.ReleaseSnapshot(snapshot)
 
@@ -168,7 +166,6 @@ func Slice(db *Db, request *Request) (*Response, error) {
 	}
 
 	response = NewSuccessResponse(data)
-	forwardResponse(response, request)
 
 	db.Connector.ReleaseSnapshot(snapshot)
 
