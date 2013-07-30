@@ -161,7 +161,11 @@ func (store *DbStore) Add(db_name string) (err error) {
 			l4g.Error(err)
 			return err
 		}
-		db.Mount()
+                err = db.Mount()
+                if err != nil {
+                        l4g.Error(err)
+                        return err
+                }
 	}
 
 	l4g.Debug(func() string {
