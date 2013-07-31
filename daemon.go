@@ -5,9 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"os/signal"
 	"strconv"
-	"syscall"
 )
 
 func createPidFile(pidfile string) error {
@@ -38,21 +36,10 @@ func removePidFile(pidfile string) {
 	}
 }
 
-func Daemon(config *Config) error {
+func Daemon(config *Config, exitChannel chan bool) {
 	if err := createPidFile(config.Core.Pidfile); err != nil {
 		log.Fatal(err)
 	}
 	defer removePidFile(config.Core.Pidfile)
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
-
-	go func() {
-		sig := <-c
-		log.Printf("Received signal '%v', exiting\n", sig)
-		removePidFile(config.Core.Pidfile)
-		os.Exit(0)
-	}()
-
-	return ListenAndServe(config)
+	ListenAndServe(config, exitChannel)
 }
