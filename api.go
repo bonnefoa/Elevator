@@ -2,6 +2,7 @@ package elevator
 
 import (
 	"bytes"
+	"fmt"
 	leveldb "github.com/jmhodges/levigo"
 	"strconv"
 )
@@ -32,7 +33,10 @@ func Get(db *Db, request *Request) (*Response, error) {
 
 	ro := leveldb.NewReadOptions()
 	value, err := db.Connector.Get(ro, []byte(key))
-	if err != nil {
+	if value == nil {
+		response = NewFailureResponse(KEY_ERROR,
+			fmt.Sprintf("Key %s does not exists", key))
+	} else if err != nil {
 		response = NewFailureResponse(KEY_ERROR, err.Error())
 	} else {
 		response = NewSuccessResponse([]string{string(value)})
