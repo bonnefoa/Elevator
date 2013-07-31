@@ -238,6 +238,15 @@ func (store *DbStore) Exists(db_name string) (bool, error) {
 	return false, nil
 }
 
+func (store *DbStore) UnmountAll() {
+	l4g.Debug("Closing dbstore")
+	for _, db := range store.Container {
+		if db.Status == DB_STATUS_MOUNTED {
+			db.Unmount()
+		}
+	}
+}
+
 // List enumerates  all the databases
 // in DbStore
 func (store *DbStore) List() []string {
