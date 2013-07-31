@@ -10,7 +10,7 @@ import (
 )
 
 type ClientSocket struct {
-	Id     []byte
+	Id     [][]byte
 	Socket zmq.Socket
 }
 
@@ -76,15 +76,13 @@ func processRequest(db *Db, request *Request) (*Response, error) {
 func forwardResponse(response *Response, request *Request) error {
 	l4g.Debug(func() string { return response.String() })
 
-	var response_buf 	bytes.Buffer
-	var socket 			*zmq.Socket = &request.Source.Socket
-	var address 		[]byte = request.Source.Id
-	var parts 			[][]byte = make([][]byte, 2)
+	var response_buf bytes.Buffer
+	var socket *zmq.Socket = &request.Source.Socket
 
-	response.PackInto(&response_buf)
-	parts[0] = address
-	parts[1] = response_buf.Bytes()
+	PackInto(response, &response_buf)
 
+	parts := request.Source.Id
+	parts = append(parts, response_buf.Bytes())
 	err := socket.SendMultipart(parts, 0)
 	if err != nil {
 		return err
@@ -134,10 +132,10 @@ func ListenAndServe(config *Config) error {
 			parts, _ := poller[0].Socket.RecvMultipart(0)
 
 			client_socket := ClientSocket{
-				Id:     parts[0],
+				Id:     parts[0:2],
 				Socket: *socket,
 			}
-			msg := parts[1]
+			msg := parts[2]
 
 			go handleRequest(&client_socket, msg, db_store)
 		}
