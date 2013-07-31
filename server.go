@@ -37,7 +37,7 @@ func handleRequest(client_socket *ClientSocket, raw_msg []byte, db_store *DbStor
 
 	// Deserialize request message and fulfill request
 	// obj with it's content
-	request.UnpackFrom(msg)
+	UnpackFrom(request, msg)
 	request.Source = client_socket
 	l4g.Debug(func() string { return request.String() })
 
