@@ -106,6 +106,7 @@ func ListenAndServe(config *Config) error {
 	// Load database store
 	db_store := NewDbStore(config)
 	defer func() {
+		db_store.UnmountAll()
 		socket.Close()
 		context.Close()
 	}()
