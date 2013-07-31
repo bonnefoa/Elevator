@@ -84,30 +84,10 @@ func MGet(db *Db, request *Request) (*Response, error) {
 	snapshot := db.Connector.NewSnapshot()
 	read_options.SetSnapshot(snapshot)
 
-	if len(request.Args) > 0 {
-		start := request.Args[0]
-		end := request.Args[len(request.Args)-1]
-
-		keys_index := make(map[string]int)
-
-		for index, element := range request.Args {
-			keys_index[element] = index
-		}
-
-		it := db.Connector.NewIterator(read_options)
-		defer it.Close()
-		it.Seek([]byte(start))
-
-		for ; it.Valid(); it.Next() {
-			if bytes.Compare(it.Key(), []byte(end)) > 1 {
-				break
-			}
-
-			if index, present := keys_index[string(it.Key())]; present {
-				data[index] = string(it.Value())
-			}
-		}
-
+	for i, key := range request.Args {
+		value, _ := db.Connector.Get(read_options,
+			[]byte(key))
+		data[i] = string(value)
 	}
 
 	response = NewSuccessResponse(data)
