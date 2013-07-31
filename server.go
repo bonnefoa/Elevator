@@ -95,7 +95,21 @@ func forwardResponse(response *Response, request *Request) error {
 	return nil
 }
 
-func ListenAndServe(config *Config) error {
+func PollChannel(socket *zmq.Socket, pollChan chan [][]byte) {
+	// Poll for events on the zmq socket
+	// and send incoming requests in the poll channel
+	for {
+		// build zmq poller
+		pollers := zmq.PollItems{
+			zmq.PollItem{Socket: socket, Events: zmq.POLLIN},
+		}
+		zmq.Poll(pollers, -1)
+                parts, _ := pollers[0].Socket.RecvMultipart(0)
+                pollChan <- parts
+	}
+}
+
+func ListenAndServe(config *Config, exitSignal chan bool) {
 	l4g.Info(fmt.Sprintf("Elevator started on %s", config.Core.Endpoint))
 
 	// Build server zmq socket
@@ -104,13 +118,13 @@ func ListenAndServe(config *Config) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	// Load database store
 	db_store := NewDbStore(config)
 	defer func() {
 		db_store.UnmountAll()
 		socket.Close()
 		context.Close()
+		exitSignal <- true
 	}()
 
 	err = db_store.Load()
@@ -121,27 +135,21 @@ func ListenAndServe(config *Config) error {
 		}
 	}
 
-	// build zmq poller
-	poller := zmq.PollItems{
-		zmq.PollItem{Socket: socket, Events: zmq.POLLIN},
-	}
+	pollChan := make(chan [][]byte)
+	go PollChannel(socket, pollChan)
 
-	// Poll for events on the zmq socket
-	// and handle the incoming requests in a goroutine
 	for {
-		_, _ = zmq.Poll(poller, -1)
-
-		switch {
-		case poller[0].REvents&zmq.POLLIN != 0:
-			parts, _ := poller[0].Socket.RecvMultipart(0)
-
+		select {
+		case parts := <-pollChan:
 			client_socket := ClientSocket{
 				Id:     parts[0:2],
 				Socket: *socket,
 			}
 			msg := parts[2]
-
 			go handleRequest(&client_socket, msg, db_store)
+		case <-exitSignal:
+			l4g.Info("Exiting server")
+                        return
 		}
 	}
 }
