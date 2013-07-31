@@ -38,9 +38,10 @@ func NewDb(db_name string, path string, config *StorageEngineConfig) *Db {
 func (db *Db) StartRoutine() {
 	for request := range db.Channel {
 		response, err := processRequest(db, request)
-		if err == nil {
-			forwardResponse(response, request)
+		if err != nil {
+			l4g.Error(err)
 		}
+		forwardResponse(response, request)
 	}
 }
 
