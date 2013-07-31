@@ -48,13 +48,17 @@ func handleRequest(client_socket *ClientSocket, raw_msg []byte, db_store *DbStor
 			}
 			db.Channel <- request
 		}
-	} else {
+	} else if len(request.Args) > 0 {
 		go func() {
 			response, err := store_commands[request.Command](db_store, request)
-			if err == nil {
-				forwardResponse(response, request)
+			if err != nil {
+				l4g.Error(err)
 			}
+			forwardResponse(response, request)
 		}()
+	} else {
+		response := NewFailureResponse(REQUEST_ERROR, "Invalid arguments")
+		forwardResponse(response, request)
 	}
 }
 
