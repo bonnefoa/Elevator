@@ -1,9 +1,7 @@
 package elevator
 
 import (
-    "fmt"
-    "bytes"
-    "github.com/ugorji/go-msgpack"
+	"fmt"
 )
 
 type Response struct {
@@ -46,29 +44,4 @@ func NewFailureResponse(err_code int, err_msg string) *Response {
         Err_code: err_code,
         Err_msg:  err_msg,
     }
-}
-
-// ToArray transforms a Response to an array-like []interface{}
-func (r *Response) ToArray() []interface{} {
-    var response []interface{}
-
-    response = append(response, r.Status, r.Err_code, r.Err_msg)
-
-    for _, d := range r.Data {
-        response = append(response, string(d))
-    }
-
-    return response
-}
-
-// PackInto method fulfills serializes the Response
-// into a msgpacked response message
-func (r *Response) PackInto(buffer *bytes.Buffer) error {
-    enc := msgpack.NewEncoder(buffer)
-    err := enc.Encode(r.ToArray())
-    if err != nil {
-        return err
-    }
-
-    return nil
 }
