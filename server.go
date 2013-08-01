@@ -9,6 +9,8 @@ import (
 	"log"
 )
 
+var eint_error = "interrupted system call"
+
 type ClientSocket struct {
 	Id     [][]byte
 	Socket zmq.Socket
@@ -83,6 +85,7 @@ func processRequest(db *Db, request *Request) (*Response, error) {
 func forwardResponse(response *Response, request *Request) error {
 	l4g.Debug(func() string { return response.String() })
 
+        var err error
 	var response_buf bytes.Buffer
 	var socket *zmq.Socket = &request.Source.Socket
 
@@ -90,11 +93,13 @@ func forwardResponse(response *Response, request *Request) error {
 
 	parts := request.Source.Id
 	parts = append(parts, response_buf.Bytes())
-	err := socket.SendMultipart(parts, 0)
-	if err != nil {
-		return err
-	}
-
+        for  {
+                err = socket.SendMultipart(parts, 0)
+                if err == nil { break }
+                if err.Error() == eint_error { continue }
+                l4g.Warn("Error when sending response %v", err)
+                return err
+        }
 	return nil
 }
 
