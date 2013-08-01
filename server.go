@@ -25,7 +25,10 @@ func buildServerSocket(endpoint string) (*zmq.Socket, *zmq.Context, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	socket.Bind(endpoint)
+        err = socket.Bind(endpoint)
+	if err != nil {
+		return nil, nil, err
+	}
 	return socket, context, nil
 }
 
