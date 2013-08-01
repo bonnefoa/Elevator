@@ -1,3 +1,4 @@
+SHELL := /usr/bin/env bash
 ELEVATOR_PACKAGE := github.com/oleiade/Elevator
 
 BUILD_DIR := $(CURDIR)/.gopath
@@ -53,8 +54,13 @@ else ifneq ($(ELEVATOR_DIR), $(realpath $(ELEVATOR_DIR)))
 	@rm -f $(ELEVATOR_DIR)
 endif
 
+PACKAGES := $(shell find . -iname '*_test.go' | xargs -I{} dirname {} | sort | uniq | sed -rn 's`\.`$(ELEVATOR_PACKAGE)`p')
+
 test: all
-	@(cd $(ELEVATOR_DIR); sudo -E go test $(GO_OPTIONS))
+	@go test $(GO_OPTIONS) $(PACKAGES)
+
+bench: all
+	@go test $(PACKAGES) -bench .
 
 fmt:
 	@gofmt -s -l -w .
