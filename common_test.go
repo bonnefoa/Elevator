@@ -105,9 +105,13 @@ func TemplateDbTest(t Tester, f func(*DbStore, *Db)) {
 
 func receiveResponse(t Tester, socket *zmq.Socket) Response {
 	var response Response
-	parts, _ := socket.RecvMultipart(0)
-        if len(parts) == 0 {
-                t.Fatal("Received empty response")
+        var parts [][]byte
+        var err error
+        for  {
+                parts, err = socket.RecvMultipart(0)
+                if err == nil { break }
+                if err != nil && err.Error() == eint_error { continue }
+
         }
 	UnpackFrom(&response, bytes.NewBuffer(parts[0]))
 	return response
