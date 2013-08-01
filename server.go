@@ -7,6 +7,7 @@ import (
 	zmq "github.com/alecthomas/gozmq"
 	l4g "github.com/alecthomas/log4go"
 	"log"
+        "time"
 )
 
 var eint_error = "interrupted system call"
@@ -103,7 +104,7 @@ func forwardResponse(response *Response, request *Request) error {
 	return nil
 }
 
-func PollChannel(socket *zmq.Socket, pollChan chan [][]byte) {
+func PollChannel(socket *zmq.Socket, pollChan chan [][]byte, exitSignal chan bool) {
 	// Poll for events on the zmq socket
 	// and send incoming requests in the poll channel
 	for {
@@ -111,7 +112,18 @@ func PollChannel(socket *zmq.Socket, pollChan chan [][]byte) {
 		pollers := zmq.PollItems{
 			zmq.PollItem{Socket: socket, Events: zmq.POLLIN},
 		}
-		zmq.Poll(pollers, -1)
+                _, err := zmq.Poll(pollers, time.Second)
+                if err != nil && err.Error() == eint_error { continue }
+                if err != nil {
+                        select {
+                        case <- exitSignal:
+                                l4g.Info("Exiting poll channel")
+                                return
+                        case <- time.After(time.Millisecond):
+                                l4g.Warn("Error on polling %q", err)
+                                continue
+                        }
+                }
                 parts, _ := pollers[0].Socket.RecvMultipart(0)
                 pollChan <- parts
 	}
@@ -145,8 +157,7 @@ func ListenAndServe(config *Config, exitSignal chan bool) {
 		close(pollChan)
 	}()
 
-	pollChan := make(chan [][]byte)
-	go PollChannel(socket, pollChan)
+	go PollChannel(socket, pollChan, exitSignal)
 
 	for {
 		select {
