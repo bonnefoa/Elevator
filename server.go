@@ -128,13 +128,6 @@ func ListenAndServe(config *Config, exitSignal chan bool) {
 	}
 	// Load database store
 	db_store := NewDbStore(config)
-	defer func() {
-		db_store.UnmountAll()
-		socket.Close()
-		context.Close()
-		exitSignal <- true
-	}()
-
 	err = db_store.Load()
 	if err != nil {
 		err = db_store.Add("default")
@@ -142,6 +135,15 @@ func ListenAndServe(config *Config, exitSignal chan bool) {
 			log.Fatal(err)
 		}
 	}
+	pollChan := make(chan [][]byte)
+
+	defer func() {
+		db_store.UnmountAll()
+		socket.Close()
+		context.Close()
+		close(exitSignal)
+		close(pollChan)
+	}()
 
 	pollChan := make(chan [][]byte)
 	go PollChannel(socket, pollChan)
