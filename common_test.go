@@ -94,11 +94,11 @@ func GetTestDb() (*DbStore, *Db, error) {
 	return db_store, db, nil
 }
 
-func TemplateDbTest(fatalf func(string, ...interface{}), f func(*DbStore, *Db)) {
+func TemplateDbTest(t Tester, f func(*DbStore, *Db)) {
 	db_store, db, err := GetTestDb()
 	defer db_store.UnmountAll()
 	if err != nil {
-		fatalf("Error when creating test db %v", err)
+		t.Fatalf("Error when creating test db %v", err)
 	}
 	f(db_store, db)
 }

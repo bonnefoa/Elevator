@@ -61,7 +61,7 @@ func TestOperations(t *testing.T) {
 			}
 		}
 	}
-	TemplateDbTest(t.Fatalf, f)
+	TemplateDbTest(t, f)
 }
 
 func BenchmarkAtomicPut(b *testing.B) {
@@ -72,7 +72,7 @@ func BenchmarkAtomicPut(b *testing.B) {
 				fmt.Sprintf("val_%i", i)}})
 		}
 	}
-	TemplateDbTest(b.Fatalf, f)
+	TemplateDbTest(b, f)
 }
 
 func BenchmarkBatchPut(b *testing.B) {
@@ -80,7 +80,7 @@ func BenchmarkBatchPut(b *testing.B) {
 		b.ResetTimer()
 		fillNKeys(db, b.N)
 	}
-	TemplateDbTest(b.Fatalf, f)
+	TemplateDbTest(b, f)
 }
 
 func BenchmarkGet(b *testing.B) {
@@ -91,7 +91,7 @@ func BenchmarkGet(b *testing.B) {
 			Get(db, &Request{Args: []string{fmt.Sprintf("key_%i", i)}})
 		}
 	}
-	TemplateDbTest(b.Fatalf, f)
+	TemplateDbTest(b, f)
 }
 
 func BenchmarkBatchDelete(b *testing.B) {
@@ -106,7 +106,7 @@ func BenchmarkBatchDelete(b *testing.B) {
 		req := &Request{Args: args}
 		Batch(db, req)
 	}
-	TemplateDbTest(b.Fatalf, f)
+	TemplateDbTest(b, f)
 }
 
 func BenchmarkDelete(b *testing.B) {
@@ -118,7 +118,7 @@ func BenchmarkDelete(b *testing.B) {
 			Delete(db, req)
 		}
 	}
-	TemplateDbTest(b.Fatalf, f)
+	TemplateDbTest(b, f)
 }
 
 func OldMGet(db *Db, request *Request) (*Response, error) {
@@ -163,7 +163,7 @@ func templateMGet(b *testing.B, numKeys int, fun func(*Db, *Request) (*Response,
 			fun(db, &Request{Args: get})
 		}
 	}
-	TemplateDbTest(b.Fatalf, f)
+	TemplateDbTest(b, f)
 }
 
 func Benchmark10MGet(b *testing.B) {

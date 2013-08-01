@@ -13,5 +13,5 @@ func TestDbStoreList(t *testing.T) {
 				lst_dbs)
 		}
 	}
-	TemplateDbTest(t.Fatalf, f)
+	TemplateDbTest(t, f)
 }
