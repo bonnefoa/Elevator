@@ -40,23 +40,16 @@ func sendRequest(request Request, socket *zmq.Socket) {
 	socket.SendMultipart([][]byte{buffer.Bytes()}, 0)
 }
 
-func receiveResponse(socket *zmq.Socket) Response {
-	var response Response
-	parts, _ := socket.RecvMultipart(0)
-	UnpackFrom(&response, bytes.NewBuffer(parts[0]))
-	return response
-}
-
 func TestServer(t *testing.T) {
 	f := func(socket *zmq.Socket, uid string) {
 		sendRequest(Request{Command: DB_PUT, Args: []string{"key", "val"}, DbUid: uid}, socket)
-		response := receiveResponse(socket)
+		response := receiveResponse(t, socket)
 		if response.Status != SUCCESS_STATUS {
 			t.Fatalf("Error on db put %q", response)
 		}
 
 		sendRequest(Request{Command: DB_GET, Args: []string{"key"}, DbUid: uid}, socket)
-		response = receiveResponse(socket)
+		response = receiveResponse(t, socket)
 		if response.Status != SUCCESS_STATUS {
 			t.Fatalf("Error on db get %q", response)
 		}
@@ -64,7 +57,7 @@ func TestServer(t *testing.T) {
 			t.Fatalf("Expected to fetch 'key' value 'val', got %q", response.Data[0])
 		}
 	}
-	TemplateServerTest(t.Fatalf, f)
+	TemplateServerTest(t, f)
 }
 
 func BenchmarkServerGet(b *testing.B) {
@@ -76,7 +69,7 @@ func BenchmarkServerGet(b *testing.B) {
 			args[i+2] = fmt.Sprintf("val_%i", i)
 		}
 		sendRequest(Request{Command: DB_BATCH, Args: args, DbUid: uid}, socket)
-		response := receiveResponse(socket)
+		response := receiveResponse(b, socket)
 		if response.Status != SUCCESS_STATUS {
 			b.Fatalf("Error on db batch %q", response)
 		}
@@ -84,8 +77,8 @@ func BenchmarkServerGet(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			sendRequest(Request{Command: DB_GET,
 				Args: []string{fmt.Sprintf("key_%i", i)}, DbUid: uid}, socket)
-			response = receiveResponse(socket)
+			response = receiveResponse(b, socket)
 		}
 	}
-	TemplateServerTest(b.Fatalf, f)
+	TemplateServerTest(b, f)
 }

@@ -6,9 +6,15 @@ import (
 	zmq "github.com/alecthomas/gozmq"
 	l4g "github.com/alecthomas/log4go"
 	"os"
+	"bytes"
 )
 
 const TestDb = "test_db"
+
+type Tester interface {
+        Fatal(args ...interface{})
+        Fatalf(format string, args ...interface{})
+}
 
 var TestConf = GetTestConf()
 
@@ -97,7 +103,17 @@ func TemplateDbTest(fatalf func(string, ...interface{}), f func(*DbStore, *Db)) 
 	f(db_store, db)
 }
 
-func TemplateServerTest(fatalf func(string, ...interface{}), f func(*zmq.Socket, string)) {
+func receiveResponse(t Tester, socket *zmq.Socket) Response {
+	var response Response
+	parts, _ := socket.RecvMultipart(0)
+        if len(parts) == 0 {
+                t.Fatal("Received empty response")
+        }
+	UnpackFrom(&response, bytes.NewBuffer(parts[0]))
+	return response
+}
+
+func TemplateServerTest(t Tester, f func(*zmq.Socket, string)) {
 	CleanDbStorage()
 	exitSignal := make(chan bool)
 	go ListenAndServe(TestConf, exitSignal)
@@ -111,14 +127,14 @@ func TemplateServerTest(fatalf func(string, ...interface{}), f func(*zmq.Socket,
 	socket.Connect(TestConf.Core.Endpoint)
 
 	sendRequest(Request{Command: DB_CREATE, Args: []string{TestDb}}, socket)
-	response := receiveResponse(socket)
+	response := receiveResponse(t, socket)
 	if response.Status != SUCCESS_STATUS {
-		fatalf("Error on db creation %v", response)
+		t.Fatalf("Error on db creation %v", response)
 	}
 	sendRequest(Request{Command: DB_CONNECT, Args: []string{TestDb}}, socket)
-	response = receiveResponse(socket)
+	response = receiveResponse(t, socket)
 	if response.Status != SUCCESS_STATUS {
-		fatalf("Error on db connection %q", response)
+		t.Fatalf("Error on db connection %q", response)
 	}
 
 	uid := response.Data[0]
