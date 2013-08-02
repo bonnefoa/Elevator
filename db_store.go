@@ -11,7 +11,7 @@ import (
 )
 
 type DbStore struct {
-	Config 		*Config
+	*Config
 	Container   map[string]*Db
 	NameToUid   map[string]string
 }
@@ -19,9 +19,9 @@ type DbStore struct {
 // DbStore constructor
 func NewDbStore(config *Config) *DbStore {
 	return &DbStore{
-		Config: 	 config,
-		Container:   make(map[string]*Db),
-		NameToUid:   make(map[string]string),
+		config,
+		make(map[string]*Db),
+		make(map[string]string),
 	}
 }
 
@@ -36,7 +36,7 @@ func (store *DbStore) updateNameToUidIndex() {
 // ReadFromFile syncs the content of the store
 // description file to the DbStore
 func (store *DbStore) ReadFromFile() (err error) {
-	data, err := ioutil.ReadFile(store.Config.StorePath)
+	data, err := ioutil.ReadFile(store.StorePath)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (store *DbStore) WriteToFile() (err error) {
 	var data []byte
 
 	// Check the directory hosting the store exists
-	store_base_path := filepath.Dir(store.Config.StorePath)
+	store_base_path := filepath.Dir(store.StorePath)
 	_, err = os.Stat(store_base_path)
 	if os.IsNotExist(err) {
 		return err
@@ -68,7 +68,7 @@ func (store *DbStore) WriteToFile() (err error) {
 		return err
 	}
 
-	err = ioutil.WriteFile(store.Config.StorePath, data, 0777)
+	err = ioutil.WriteFile(store.StorePath, data, 0777)
 	if err != nil {
 		return err
 	}
@@ -150,10 +150,10 @@ func (store *DbStore) Add(db_name string) (err error) {
 				return error
 			}
 		} else {
-			db_path = filepath.Join(store.Config.StoragePath, db_name)
+			db_path = filepath.Join(store.StoragePath, db_name)
 		}
 
-		db := NewDb(db_name, db_path, store.Config.StorageEngineConfig)
+		db := NewDb(db_name, db_path, store.StorageEngineConfig)
 		store.Container[db.Uid] = db
 		store.updateNameToUidIndex()
 		err = store.WriteToFile()
