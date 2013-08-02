@@ -6,18 +6,6 @@ import (
     "log"
 )
 
-type LogConfiguration struct {
-	LogFile     string `ini:"log_file"`
-	LogLevel    string `ini:"log_level"`
-}
-
-func NewLogConfiguration() *LogConfiguration {
-    return &LogConfiguration {
-		LogFile:     "/var/log/elevator.log",
-		LogLevel:    "INFO",
-    }
-}
-
 func (c *LogConfiguration) L4gLevel() l4g.Level {
     return logLevels[c.LogLevel]
 }
