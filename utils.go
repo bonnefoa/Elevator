@@ -5,6 +5,9 @@ import (
 	"github.com/ugorji/go/codec"
 	"os"
 	"strings"
+	"os/signal"
+	"syscall"
+	"log"
 )
 
 func DirExists(path string) (bool, error) {
@@ -76,4 +79,16 @@ func UnpackFrom(v interface{}, data *bytes.Buffer) error {
 		return err
 	}
 	return nil
+}
+
+func SetupExitChannel() chan bool {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
+	exitChannel := make(chan bool)
+	go func() {
+		sig := <-c
+		log.Printf("Received signal '%v', exiting\n", sig)
+		exitChannel <- true
+	}()
+    return exitChannel
 }

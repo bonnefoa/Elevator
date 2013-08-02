@@ -2,10 +2,6 @@ package elevator
 
 import (
 	"flag"
-	"os"
-	"os/signal"
-	"syscall"
-	"log"
 )
 
 type Cmdline struct {
@@ -29,16 +25,4 @@ func (c *Cmdline) ParseArgs() {
 		DEFAULT_LOG_LEVEL,
 		"Sets elevator verbosity")
 	flag.Parse()
-}
-
-func SetupExitChannel() chan bool {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
-	exitChannel := make(chan bool)
-	go func() {
-		sig := <-c
-		log.Printf("Received signal '%v', exiting\n", sig)
-		exitChannel <- true
-	}()
-    return exitChannel
 }
