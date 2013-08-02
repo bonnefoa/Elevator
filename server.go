@@ -130,10 +130,10 @@ func PollChannel(socket *zmq.Socket, pollChan chan [][]byte, exitSignal chan boo
 }
 
 func ListenAndServe(config *Config, exitSignal chan bool) {
-	l4g.Info(fmt.Sprintf("Elevator started on %s", config.Core.Endpoint))
+	l4g.Info(fmt.Sprintf("Elevator started on %s", config.Endpoint))
 
 	// Build server zmq socket
-	socket, context, err := buildServerSocket(config.Core.Endpoint)
+	socket, context, err := buildServerSocket(config.Endpoint)
 
 	if err != nil {
 		log.Fatal(err)

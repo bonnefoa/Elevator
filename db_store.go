@@ -36,7 +36,7 @@ func (store *DbStore) updateNameToUidIndex() {
 // ReadFromFile syncs the content of the store
 // description file to the DbStore
 func (store *DbStore) ReadFromFile() (err error) {
-	data, err := ioutil.ReadFile(store.Config.Core.StorePath)
+	data, err := ioutil.ReadFile(store.Config.StorePath)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (store *DbStore) WriteToFile() (err error) {
 	var data []byte
 
 	// Check the directory hosting the store exists
-	store_base_path := filepath.Dir(store.Config.Core.StorePath)
+	store_base_path := filepath.Dir(store.Config.StorePath)
 	_, err = os.Stat(store_base_path)
 	if os.IsNotExist(err) {
 		return err
@@ -68,7 +68,7 @@ func (store *DbStore) WriteToFile() (err error) {
 		return err
 	}
 
-	err = ioutil.WriteFile(store.Config.Core.StorePath, data, 0777)
+	err = ioutil.WriteFile(store.Config.StorePath, data, 0777)
 	if err != nil {
 		return err
 	}
@@ -150,10 +150,10 @@ func (store *DbStore) Add(db_name string) (err error) {
 				return error
 			}
 		} else {
-			db_path = filepath.Join(store.Config.Core.StoragePath, db_name)
+			db_path = filepath.Join(store.Config.StoragePath, db_name)
 		}
 
-		db := NewDb(db_name, db_path, store.Config.Storage)
+		db := NewDb(db_name, db_path, store.Config.StorageEngineConfig)
 		store.Container[db.Uid] = db
 		store.updateNameToUidIndex()
 		err = store.WriteToFile()

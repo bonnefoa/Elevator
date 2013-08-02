@@ -8,8 +8,8 @@ import (
 )
 
 type Config struct {
-	Core 		*CoreConfig
-	Storage 	*StorageEngineConfig
+	*CoreConfig
+	*StorageEngineConfig
 }
 
 type CoreConfig struct {
@@ -35,8 +35,8 @@ type StorageEngineConfig struct {
 
 func NewConfig() *Config {
 	return &Config{
-		Core: NewCoreConfig(),
-		Storage: NewStorageEngineConfig(),
+		NewCoreConfig(),
+		NewStorageEngineConfig(),
 	}
 }
 
@@ -81,26 +81,22 @@ func (opts *StorageEngineConfig) ToLeveldbOptions() *leveldb.Options {
 }
 
 func (opts *StorageEngineConfig) UpdateFromConfig(config *Config) {
-	opts.Compression = config.Storage.Compression
-	opts.BlockSize = config.Storage.BlockSize
-	opts.CacheSize = config.Storage.CacheSize
-	opts.BloomFilterBits = config.Storage.BloomFilterBits
-	opts.MaxOpenFiles = config.Storage.MaxOpenFiles
-	opts.VerifyChecksums = config.Storage.VerifyChecksums
-	opts.WriteBufferSize = config.Storage.WriteBufferSize
+	opts.Compression = config.Compression
+	opts.BlockSize = config.BlockSize
+	opts.CacheSize = config.CacheSize
+	opts.BloomFilterBits = config.BloomFilterBits
+	opts.MaxOpenFiles = config.MaxOpenFiles
+	opts.VerifyChecksums = config.VerifyChecksums
+	opts.WriteBufferSize = config.WriteBufferSize
 }
 
 func (c *Config) FromFile(path string) error {
-	err := loadConfigFromFile(path, c.Core, "core")
-	if err != nil {
+    if err := loadConfigFromFile(path, c.CoreConfig, "core"); err != nil {
 		return err
 	}
-
-	err = loadConfigFromFile(path, c.Storage, "storage_engine")
-	if err != nil {
+	if err := loadConfigFromFile(path, c.StorageEngineConfig, "storage_engine"); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -148,13 +144,13 @@ func LoadConfig(cmdline *Cmdline) *Config {
 		log.Fatal(err)
 	}
 	if *cmdline.DaemonMode != DEFAULT_DAEMON_MODE {
-		c.Core.Daemon = *cmdline.DaemonMode
+		c.Daemon = *cmdline.DaemonMode
 	}
 	if *cmdline.Endpoint != DEFAULT_ENDPOINT {
-		c.Core.Endpoint = *cmdline.Endpoint
+		c.Endpoint = *cmdline.Endpoint
 	}
 	if *cmdline.LogLevel != DEFAULT_LOG_LEVEL {
-		c.Core.LogLevel = *cmdline.LogLevel
+		c.LogLevel = *cmdline.LogLevel
 	}
     return c
 }

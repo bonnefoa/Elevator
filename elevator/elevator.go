@@ -17,7 +17,7 @@ func main() {
     config := elevator.LoadConfig(cmdline)
 	// Set up loggers
 	l4g.AddFilter("stdout", l4g.INFO, l4g.NewConsoleLogWriter())
-    err := elevator.SetupFileLogger("file", config.Core.LogLevel, config.Core.LogFile)
+    err := elevator.SetupFileLogger("file", config.LogLevel, config.LogFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -31,7 +31,7 @@ func main() {
 		exitChannel <- true
 	}()
 
-	if config.Core.Daemon {
+	if config.Daemon {
 		elevator.Daemon(config, exitChannel)
 	} else {
 		elevator.ListenAndServe(config, exitChannel)

@@ -31,8 +31,8 @@ func GetTestConf() *Config {
 	}
 	storage := NewStorageEngineConfig()
 	config := &Config{
-		Core:    core,
-		Storage: storage,
+		core,
+		storage,
 	}
 	l4g.AddFilter("stdout", l4g.INFO, l4g.NewConsoleLogWriter())
 	return config
@@ -63,8 +63,8 @@ func fillNKeys(db *Db, n int) {
 }
 
 func CleanDbStorage() {
-	os.RemoveAll(TestConf.Core.StoragePath)
-	os.MkdirAll(TestConf.Core.StoragePath, 0700)
+	os.RemoveAll(TestConf.StoragePath)
+	os.MkdirAll(TestConf.StoragePath, 0700)
 }
 
 func GetTestDb() (*DbStore, *Db, error) {
@@ -128,7 +128,7 @@ func TemplateServerTest(t Tester, f func(*zmq.Socket, string)) {
 
 	context, _ := zmq.NewContext()
 	socket, _ := context.NewSocket(zmq.REQ)
-	socket.Connect(TestConf.Core.Endpoint)
+	socket.Connect(TestConf.Endpoint)
 
 	sendRequest(Request{Command: DB_CREATE, Args: []string{TestDb}}, socket)
 	response := receiveResponse(t, socket)

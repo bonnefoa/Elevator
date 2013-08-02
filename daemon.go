@@ -37,9 +37,9 @@ func removePidFile(pidfile string) {
 }
 
 func Daemon(config *Config, exitChannel chan bool) {
-	if err := createPidFile(config.Core.Pidfile); err != nil {
+	if err := createPidFile(config.Pidfile); err != nil {
 		log.Fatal(err)
 	}
-	defer removePidFile(config.Core.Pidfile)
+	defer removePidFile(config.Pidfile)
 	ListenAndServe(config, exitChannel)
 }
