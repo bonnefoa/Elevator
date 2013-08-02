@@ -10,6 +10,7 @@ func TestConfigFromPath(t *testing.T) {
 	c := &Config{
 		&CoreConfig{},
 		&StorageEngineConfig{},
+        &LogConfiguration{},
 	}
 	c.FromFile("conf/elevator.conf")
 	if !reflect.DeepEqual(c, expected) {

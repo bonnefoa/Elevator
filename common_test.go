@@ -19,6 +19,10 @@ type Tester interface {
 var TestConf = GetTestConf()
 
 func GetTestConf() *Config {
+    logConfig := &LogConfiguration{
+		LogFile:     "test/elevator.log",
+		LogLevel:    "INFO",
+    }
 	core := &CoreConfig{
 		Daemon:      false,
 		Endpoint:    "tcp://127.0.0.1:4141",
@@ -26,13 +30,12 @@ func GetTestConf() *Config {
 		StorePath:   "test/elevator/store",
 		StoragePath: "test/elevator",
 		DefaultDb:   "default",
-		LogFile:     "test/elevator.log",
-		LogLevel:    "INFO",
 	}
 	storage := NewStorageEngineConfig()
 	config := &Config{
 		core,
 		storage,
+        logConfig,
 	}
 	l4g.AddFilter("stdout", l4g.INFO, l4g.NewConsoleLogWriter())
 	return config

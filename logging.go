@@ -3,10 +3,27 @@ package elevator
 import (
 	l4g "github.com/alecthomas/log4go"
 	"os"
+    "log"
 )
 
+type LogConfiguration struct {
+	LogFile     string `ini:"log_file"`
+	LogLevel    string `ini:"log_level"`
+}
+
+func NewLogConfiguration() *LogConfiguration {
+    return &LogConfiguration {
+		LogFile:     "/var/log/elevator.log",
+		LogLevel:    "INFO",
+    }
+}
+
+func (c *LogConfiguration) L4gLevel() l4g.Level {
+    return logLevels[c.LogLevel]
+}
+
 // Log levels binding
-var LogLevels = map[string]l4g.Level{
+var logLevels = map[string]l4g.Level{
 	l4g.DEBUG.String():    l4g.DEBUG,
 	l4g.FINEST.String():   l4g.FINEST,
 	l4g.FINE.String():     l4g.FINE,
@@ -20,22 +37,29 @@ var LogLevels = map[string]l4g.Level{
 
 // SetupLogger function ensures logging file exists, and
 // is writable, and sets up a log4go filter accordingly
-func SetupFileLogger(logger_name string, log_level string, log_file string) error {
+func addFilterFile(logger_name string, c *LogConfiguration) error {
 	// Check file exists or return the error
-	_, err := os.Stat(log_file)
-	if err != nil {
+	if _, err := os.Stat(c.LogFile); err != nil {
 		return err
 	}
 
 	// check file permissions are correct
-	_, err = os.OpenFile(log_file, os.O_WRONLY, 0400)
+    _, err := os.OpenFile(c.LogFile, os.O_WRONLY, 0400)
 	if err != nil {
 		return err
 	}
 
-	l4g.AddFilter(logger_name,
-		LogLevels[log_level],
-		l4g.NewFileLogWriter(log_file, false))
+	l4g.AddFilter(logger_name, c.L4gLevel(),
+		l4g.NewFileLogWriter(c.LogFile, false))
 
 	return nil
+}
+
+func ConfigureLogger(c *LogConfiguration) {
+	// Set up loggers
+	l4g.AddFilter("stdout", c.L4gLevel(), l4g.NewConsoleLogWriter())
+    err := addFilterFile("file", c)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

@@ -10,6 +10,7 @@ import (
 type Config struct {
 	*CoreConfig
 	*StorageEngineConfig
+    *LogConfiguration
 }
 
 type CoreConfig struct {
@@ -19,8 +20,6 @@ type CoreConfig struct {
 	StorePath   string `ini:"database_store"`
 	StoragePath string `ini:"databases_storage_path"`
 	DefaultDb   string `ini:"default_db"`
-	LogFile     string `ini:"log_file"`
-	LogLevel    string `ini:"log_level"`
 }
 
 type StorageEngineConfig struct {
@@ -37,20 +36,20 @@ func NewConfig() *Config {
 	return &Config{
 		NewCoreConfig(),
 		NewStorageEngineConfig(),
+        NewLogConfiguration(),
 	}
 }
 
 func NewCoreConfig() *CoreConfig {
-	return &CoreConfig{
+    c := &CoreConfig{
 		Daemon:      false,
 		Endpoint:    "tcp://127.0.0.1:4141",
 		Pidfile:     "/var/run/elevator.pid",
 		StorePath:   "/var/lib/elevator/store.json",
 		StoragePath: "/var/lib/elevator",
 		DefaultDb:   "default",
-		LogFile:     "/var/log/elevator.log",
-		LogLevel:    "INFO",
 	}
+    return c
 }
 
 func NewStorageEngineConfig() *StorageEngineConfig {
@@ -94,7 +93,11 @@ func (c *Config) FromFile(path string) error {
     if err := loadConfigFromFile(path, c.CoreConfig, "core"); err != nil {
 		return err
 	}
-	if err := loadConfigFromFile(path, c.StorageEngineConfig, "storage_engine"); err != nil {
+	if err := loadConfigFromFile(path, c.StorageEngineConfig, "storage_engine");
+       err != nil {
+		return err
+	}
+	if err := loadConfigFromFile(path, c.LogConfiguration, "log"); err != nil {
 		return err
 	}
 	return nil
