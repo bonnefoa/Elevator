@@ -4,9 +4,6 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	elevator "github.com/oleiade/Elevator"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 func main() {
@@ -22,15 +19,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
-	exitChannel := make(chan bool)
-	go func() {
-		sig := <-c
-		log.Printf("Received signal '%v', exiting\n", sig)
-		exitChannel <- true
-        <-exitChannel
-	}()
+    exitChannel := elevator.SetupExitChannel()
 
 	if config.Daemon {
 		elevator.Daemon(config, exitChannel)
