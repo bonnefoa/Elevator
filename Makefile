@@ -25,14 +25,18 @@ BUILD_OPTIONS = -ldflags "-X main.GIT_COMMIT $(GIT_COMMIT)$(GIT_STATUS) -X main.
 SRC_DIR := $(GOPATH)/src
 
 ELEVATOR_DIR := $(SRC_DIR)/$(ELEVATOR_PACKAGE)
-ELEVATOR_MAIN := $(ELEVATOR_DIR)/elevator
 
+ELEVATOR_MAIN := $(ELEVATOR_DIR)/elevator
 ELEVATOR_BIN_RELATIVE := bin/elevator
 ELEVATOR_BIN := $(CURDIR)/$(ELEVATOR_BIN_RELATIVE)
 
+ELEVATOR_CLI_MAIN := $(ELEVATOR_DIR)/cli
+ELEVATOR_CLI_BIN_RELATIVE := bin/cli
+ELEVATOR_CLI_BIN := $(CURDIR)/$(ELEVATOR_CLI_BIN_RELATIVE)
+
 .PHONY: all clean test
 
-all: $(ELEVATOR_BIN)
+all: $(ELEVATOR_BIN) $(ELEVATOR_CLI_BIN)
 
 $(ELEVATOR_BIN): $(ELEVATOR_DIR)
 	# Specifically install gozmq zmq3 compatible version
@@ -42,6 +46,11 @@ $(ELEVATOR_BIN): $(ELEVATOR_DIR)
 	@(mkdir -p  $(dir $@))
 	@(cd $(ELEVATOR_MAIN); go get $(GO_OPTIONS); go build $(GO_OPTIONS) $(BUILD_OPTIONS) -o $@)
 	@echo $(ELEVATOR_BIN_RELATIVE) is created.
+
+$(ELEVATOR_CLI_BIN): $(ELEVATOR_DIR)
+	@(mkdir -p  $(dir $@))
+	@(cd $(ELEVATOR_CLI_MAIN); go get $(GO_OPTIONS); go build $(GO_OPTIONS) $(BUILD_OPTIONS) -o $@)
+	@echo $(ELEVATOR_CLI_BIN_RELATIVE) is created.
 
 $(ELEVATOR_DIR):
 	@mkdir -p $(dir $@)
