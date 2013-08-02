@@ -29,6 +29,7 @@ func main() {
 		sig := <-c
 		log.Printf("Received signal '%v', exiting\n", sig)
 		exitChannel <- true
+        <-exitChannel
 	}()
 
 	if config.Daemon {

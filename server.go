@@ -162,6 +162,9 @@ func ListenAndServe(config *Config, exitSignal chan bool) {
 	for {
 		select {
 		case parts := <-pollChan:
+            if len(parts) < 3 {
+                continue
+            }
 			client_socket := ClientSocket{
 				Id:     parts[0:2],
 				Socket: *socket,
