@@ -45,7 +45,7 @@ func NewCoreConfig() *CoreConfig {
 		Daemon:      false,
 		Endpoint:    "tcp://127.0.0.1:4141",
 		Pidfile:     "/var/run/elevator.pid",
-		StorePath:   "/var/lib/elevator/store",
+		StorePath:   "/var/lib/elevator/store.json",
 		StoragePath: "/var/lib/elevator",
 		DefaultDb:   "default",
 		LogFile:     "/var/log/elevator.log",
@@ -56,7 +56,7 @@ func NewCoreConfig() *CoreConfig {
 func NewStorageEngineConfig() *StorageEngineConfig {
 	return &StorageEngineConfig{
 		Compression: true,
-		BlockSize: 4096,
+		BlockSize: 131072,
 		CacheSize: 512 * 1048576,
 		BloomFilterBits: 100,
 		MaxOpenFiles: 150,
