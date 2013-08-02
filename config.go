@@ -4,6 +4,7 @@ import (
 	"reflect"
 	goconfig "github.com/msbranco/goconfig"
 	leveldb "github.com/jmhodges/levigo"
+	"log"
 )
 
 type Config struct {
@@ -138,18 +139,22 @@ func loadConfigFromFile(path string, obj interface{}, section string) error {
 	return nil
 }
 
-// A bit verbose, and not that dry, but could not find
-// more clever for now.
-func (c *CoreConfig) UpdateFromCmdline(cmdline *Cmdline) {
+// Load Configuration from default and
+// Command line option
+func LoadConfig(cmdline *Cmdline) *Config {
+	c := NewConfig()
+    err := c.FromFile(*cmdline.ConfigFile)
+	if err != nil {
+		log.Fatal(err)
+	}
 	if *cmdline.DaemonMode != DEFAULT_DAEMON_MODE {
-		c.Daemon = *cmdline.DaemonMode
+		c.Core.Daemon = *cmdline.DaemonMode
 	}
-
 	if *cmdline.Endpoint != DEFAULT_ENDPOINT {
-		c.Endpoint = *cmdline.Endpoint
+		c.Core.Endpoint = *cmdline.Endpoint
 	}
-
 	if *cmdline.LogLevel != DEFAULT_LOG_LEVEL {
-		c.LogLevel = *cmdline.LogLevel
+		c.Core.LogLevel = *cmdline.LogLevel
 	}
+    return c
 }
