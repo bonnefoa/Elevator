@@ -1,13 +1,13 @@
 package elevator
 
 import (
-	"fmt"
 	"bytes"
 	"errors"
+	"fmt"
 	zmq "github.com/alecthomas/gozmq"
 	l4g "github.com/alecthomas/log4go"
 	"log"
-        "time"
+	"time"
 )
 
 var eint_error = "interrupted system call"
@@ -28,7 +28,7 @@ func buildServerSocket(endpoint string) (*zmq.Socket, *zmq.Context, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-        err = socket.Bind(endpoint)
+	err = socket.Bind(endpoint)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -38,8 +38,8 @@ func buildServerSocket(endpoint string) (*zmq.Socket, *zmq.Context, error) {
 // handleRequest deserializes the input msgpack request,
 // processes it and ensures it is forwarded to the client.
 func handleRequest(client_socket *ClientSocket, raw_msg []byte, db_store *DbStore) {
-	var request 	*Request = new(Request)
-	var msg 		*bytes.Buffer = bytes.NewBuffer(raw_msg)
+	var request *Request = new(Request)
+	var msg *bytes.Buffer = bytes.NewBuffer(raw_msg)
 
 	// Deserialize request message and fulfill request
 	// obj with it's content
@@ -88,7 +88,7 @@ func processRequest(db *Db, request *Request) (*Response, error) {
 func forwardResponse(response *Response, request *Request) error {
 	l4g.Debug(func() string { return response.String() })
 
-        var err error
+	var err error
 	var response_buf bytes.Buffer
 	var socket *zmq.Socket = &request.Source.Socket
 
@@ -96,13 +96,17 @@ func forwardResponse(response *Response, request *Request) error {
 
 	parts := request.Source.Id
 	parts = append(parts, response_buf.Bytes())
-        for  {
-                err = socket.SendMultipart(parts, 0)
-                if err == nil { break }
-                if err.Error() == eint_error { continue }
-                l4g.Warn("Error when sending response %v", err)
-                return err
-        }
+	for {
+		err = socket.SendMultipart(parts, 0)
+		if err == nil {
+			break
+		}
+		if err.Error() == eint_error {
+			continue
+		}
+		l4g.Warn("Error when sending response %v", err)
+		return err
+	}
 	return nil
 }
 
@@ -114,20 +118,22 @@ func PollChannel(socket *zmq.Socket, pollChan chan [][]byte, exitSignal chan boo
 		pollers := zmq.PollItems{
 			zmq.PollItem{Socket: socket, Events: zmq.POLLIN},
 		}
-                _, err := zmq.Poll(pollers, time.Second)
-                if err != nil && err.Error() == eint_error { continue }
-                if err != nil {
-                        select {
-                        case <- exitSignal:
-                                l4g.Info("Exiting poll channel")
-                                return
-                        case <- time.After(time.Millisecond):
-                                l4g.Warn("Error on polling %q", err)
-                                continue
-                        }
-                }
-                parts, _ := pollers[0].Socket.RecvMultipart(0)
-                pollChan <- parts
+		_, err := zmq.Poll(pollers, time.Second)
+		if err != nil && err.Error() == eint_error {
+			continue
+		}
+		if err != nil {
+			select {
+			case <-exitSignal:
+				l4g.Info("Exiting poll channel")
+				return
+			case <-time.After(time.Millisecond):
+				l4g.Warn("Error on polling %q", err)
+				continue
+			}
+		}
+		parts, _ := pollers[0].Socket.RecvMultipart(0)
+		pollChan <- parts
 	}
 }
 
@@ -164,9 +170,9 @@ func ListenAndServe(config *Config, exitSignal chan bool) {
 	for {
 		select {
 		case parts := <-pollChan:
-            if len(parts) < 3 {
-                continue
-            }
+			if len(parts) < 3 {
+				continue
+			}
 			client_socket := ClientSocket{
 				Id:     parts[0:2],
 				Socket: *socket,
@@ -175,7 +181,7 @@ func ListenAndServe(config *Config, exitSignal chan bool) {
 			go handleRequest(&client_socket, msg, db_store)
 		case <-exitSignal:
 			l4g.Info("Exiting server")
-                        return
+			return
 		}
 	}
 }
