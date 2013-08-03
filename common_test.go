@@ -6,23 +6,22 @@ import (
 	zmq "github.com/alecthomas/gozmq"
 	l4g "github.com/alecthomas/log4go"
 	"os"
-	"bytes"
 )
 
 const TestDb = "test_db"
 
 type Tester interface {
-        Fatal(args ...interface{})
-        Fatalf(format string, args ...interface{})
+	Fatal(args ...interface{})
+	Fatalf(format string, args ...interface{})
 }
 
 var TestConf = GetTestConf()
 
 func GetTestConf() *Config {
-    logConfig := &LogConfiguration{
-		LogFile:     "test/elevator.log",
-		LogLevel:    "INFO",
-    }
+	logConfig := &LogConfiguration{
+		LogFile:  "test/elevator.log",
+		LogLevel: "INFO",
+	}
 	core := &CoreConfig{
 		Daemon:      false,
 		Endpoint:    "tcp://127.0.0.1:4141",
@@ -35,7 +34,7 @@ func GetTestConf() *Config {
 	config := &Config{
 		core,
 		storage,
-        logConfig,
+		logConfig,
 	}
 	l4g.AddFilter("stdout", l4g.INFO, l4g.NewConsoleLogWriter())
 	return config
@@ -106,40 +105,28 @@ func TemplateDbTest(t Tester, f func(*DbStore, *Db)) {
 	f(db_store, db)
 }
 
-func receiveResponse(t Tester, socket *zmq.Socket) Response {
-	var response Response
-        var parts [][]byte
-        var err error
-        for  {
-                parts, err = socket.RecvMultipart(0)
-                if err == nil { break }
-                if err != nil && err.Error() == eint_error { continue }
-
-        }
-	UnpackFrom(&response, bytes.NewBuffer(parts[0]))
-	return response
-}
-
 func TemplateServerTest(t Tester, f func(*zmq.Socket, string)) {
 	CleanDbStorage()
 	exitSignal := make(chan bool)
 	go ListenAndServe(TestConf, exitSignal)
 	defer func() {
-		exitSignal<-true
-                <-exitSignal
+		exitSignal <- true
+		<-exitSignal
 	}()
 
 	context, _ := zmq.NewContext()
 	socket, _ := context.NewSocket(zmq.REQ)
 	socket.Connect(TestConf.Endpoint)
 
-	sendRequest(Request{Command: DB_CREATE, Args: []string{TestDb}}, socket)
-	response := receiveResponse(t, socket)
+	req := Request{Command: DB_CREATE, Args: []string{TestDb}}
+	req.SendRequest(socket)
+	response := ReceiveResponse(socket)
 	if response.Status != SUCCESS_STATUS {
 		t.Fatalf("Error on db creation %v", response)
 	}
-	sendRequest(Request{Command: DB_CONNECT, Args: []string{TestDb}}, socket)
-	response = receiveResponse(t, socket)
+	req = Request{Command: DB_CONNECT, Args: []string{TestDb}}
+	req.SendRequest(socket)
+	response = ReceiveResponse(socket)
 	if response.Status != SUCCESS_STATUS {
 		t.Fatalf("Error on db connection %q", response)
 	}
