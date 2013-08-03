@@ -45,7 +45,7 @@ func NewConfig() *Config {
 func NewCoreConfig() *CoreConfig {
 	c := &CoreConfig{
 		Daemon:      false,
-		Endpoint:    "tcp://127.0.0.1:4141",
+		Endpoint:    DEFAULT_ENDPOINT,
 		Pidfile:     "/var/run/elevator.pid",
 		StorePath:   "/var/lib/elevator/store.json",
 		StoragePath: "/var/lib/elevator",
