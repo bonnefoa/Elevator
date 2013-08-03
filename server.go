@@ -47,23 +47,25 @@ func handleRequest(client_socket *ClientSocket, raw_msg []byte, db_store *DbStor
 	request.Source = client_socket
 	l4g.Debug(func() string { return request.String() })
 
-	if request.DbUid != "" {
+	_, found_db := database_commands[request.Command]
+	if found_db {
 		if db, ok := db_store.Container[request.DbUid]; ok {
 			if db.Status == DB_STATUS_UNMOUNTED {
 				db.Mount()
 			}
 			db.Channel <- request
-		}
-	} else if len(request.Args) > 0 {
-		go func() {
-			response, err := store_commands[request.Command](db_store, request)
-			if err != nil {
-				l4g.Error(err)
-			}
+		} else {
+			l4g.Error("Could not find %s in container %q",
+				request.DbUid, db_store.Container)
+			response := NewFailureResponse(KEY_ERROR,
+				fmt.Sprintf("Could not find dbuid %q", request.DbUid))
 			forwardResponse(response, request)
-		}()
+		}
 	} else {
-		response := NewFailureResponse(REQUEST_ERROR, "Invalid arguments")
+		response, err := store_commands[request.Command](db_store, request)
+		if err != nil {
+			l4g.Error(err)
+		}
 		forwardResponse(response, request)
 	}
 }
