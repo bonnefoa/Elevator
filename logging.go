@@ -3,11 +3,10 @@ package elevator
 import (
 	l4g "github.com/alecthomas/log4go"
 	"os"
-    "log"
 )
 
 func (c *LogConfiguration) L4gLevel() l4g.Level {
-    return logLevels[c.LogLevel]
+	return logLevels[c.LogLevel]
 }
 
 // Log levels binding
@@ -32,7 +31,7 @@ func addFilterFile(logger_name string, c *LogConfiguration) error {
 	}
 
 	// check file permissions are correct
-    _, err := os.OpenFile(c.LogFile, os.O_WRONLY, 0400)
+	_, err := os.OpenFile(c.LogFile, os.O_WRONLY, 0400)
 	if err != nil {
 		return err
 	}
@@ -43,11 +42,9 @@ func addFilterFile(logger_name string, c *LogConfiguration) error {
 	return nil
 }
 
-func ConfigureLogger(c *LogConfiguration) {
+func ConfigureLogger(c *LogConfiguration) error {
 	// Set up loggers
 	l4g.AddFilter("stdout", c.L4gLevel(), l4g.NewConsoleLogWriter())
-    err := addFilterFile("file", c)
-	if err != nil {
-		log.Fatal(err)
-	}
+	err := addFilterFile("file", c)
+	return err
 }
