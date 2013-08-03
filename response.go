@@ -15,6 +15,9 @@ type Response struct {
 
 // String represents the Response as a normalized string
 func (r *Response) String() string {
+	if r == nil {
+		return "<Response nil>"
+	}
 	return fmt.Sprintf("<Response status:%d err_code:%d err_msg:%s data:%s",
 		r.Status, r.Err_code, r.Err_msg, r.Data)
 }
