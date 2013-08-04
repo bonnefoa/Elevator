@@ -1,12 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
+	linenoise "github.com/GeertJohan/go.linenoise"
 	zmq "github.com/alecthomas/gozmq"
 	elevator "github.com/oleiade/Elevator"
-	"os"
+	"strings"
 )
 
 type cliState struct {
@@ -16,25 +16,24 @@ type cliState struct {
 	socket     *zmq.Socket
 }
 
-func printHelp() {
-	fmt.Printf(
-		`DBCREATE  <dbname>
-DBDROP    <dbname>
-DBCONNECT <dbname>
-DBLIST
-GET <key>
-PUT <key> <value>
-`)
+func writeHelp() {
+	fmt.Println("help write this message")
+	fmt.Println("quit stop the program")
+
+	fmt.Println("DBCREATE  <dbname>")
+	fmt.Println("DBDROP    <dbname>")
+	fmt.Println("DBCONNECT <dbname>")
+	fmt.Println("DBLIST")
+	fmt.Println("GET <key>")
+	fmt.Println("PUT <key> <value>")
 }
 
-func processRequest(state *cliState, scanner *bufio.Scanner, socket *zmq.Socket) *elevator.Request {
-	scanner.Scan()
-	l := scanner.Text()
-	if l == "help" {
-		printHelp()
-		return nil
-	}
-	request, err := elevator.RequestFromString(l)
+func writeUnrecognized() {
+	fmt.Println("Unrecognized command. Use 'help'.")
+}
+
+func processRequest(line string, state *cliState, socket *zmq.Socket) *elevator.Request {
+	request, err := elevator.RequestFromString(line)
 	if err != nil {
 		fmt.Print(err)
 		fmt.Print("\n")
@@ -45,6 +44,52 @@ func processRequest(state *cliState, scanner *bufio.Scanner, socket *zmq.Socket)
 	}
 	request.SendRequest(socket)
 	return request
+}
+
+func completionHandler(str string) []string {
+	res := []string{}
+	for _, cmd := range elevator.CommandsList {
+		if strings.HasPrefix(cmd, str) {
+			res = append(res, cmd)
+		}
+	}
+	return res
+}
+
+func cliLoop(state *cliState) {
+	for {
+		prompt := "> "
+		if state.currentUid != nil {
+			prompt = fmt.Sprintf("(%s)> ", *state.currentDb)
+		}
+		line, err := linenoise.Line(prompt)
+		if err != nil {
+			if err == linenoise.KillSignalError {
+				return
+			}
+			fmt.Println("Unexpected error : %s", err)
+		}
+		if line == "help" {
+			writeHelp()
+			continue
+		}
+		if line == "quit" {
+			return
+		}
+		request := processRequest(line, state, state.socket)
+		if request == nil {
+			continue
+		}
+		response := elevator.ReceiveResponse(state.socket)
+		if request.Command == elevator.DB_CONNECT &&
+			response.Status == elevator.SUCCESS_STATUS {
+			state.currentDb = &request.Args[0]
+			state.currentUid = &response.Data[0]
+		}
+		linenoise.AddHistory(line)
+		fmt.Print(response)
+		fmt.Print("\n")
+	}
 }
 
 func main() {
@@ -58,24 +103,7 @@ func main() {
 	socket.Connect(*state.endpoint)
 	state.socket = socket
 
-	scanner := bufio.NewScanner(os.Stdin)
-	for {
-		if state.currentUid == nil {
-			fmt.Print("$> ")
-		} else {
-			fmt.Printf("(%s) $> ", *state.currentDb)
-		}
-		request := processRequest(state, scanner, socket)
-		if request == nil {
-			continue
-		}
-		response := elevator.ReceiveResponse(socket)
-		if request.Command == elevator.DB_CONNECT &&
-			response.Status == elevator.SUCCESS_STATUS {
-			state.currentDb = &request.Args[0]
-			state.currentUid = &response.Data[0]
-		}
-		fmt.Print(response)
-		fmt.Print("\n")
-	}
+	linenoise.SetCompletionHandler(completionHandler)
+	cliLoop(state)
+	linenoise.SaveHistory("~/.elevator_history")
 }

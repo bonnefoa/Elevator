@@ -42,6 +42,24 @@ const (
 	DB_REPAIR  = "DBREPAIR"
 )
 
+var CommandsList = []string{
+	DB_GET,
+	DB_PUT,
+	DB_DELETE,
+	DB_RANGE,
+	DB_SLICE,
+	DB_BATCH,
+	DB_MGET,
+	DB_PING,
+	DB_CONNECT,
+	DB_MOUNT,
+	DB_UMOUNT,
+	DB_CREATE,
+	DB_DROP,
+	DB_LIST,
+	DB_REPAIR,
+}
+
 // batches signals
 const (
 	SIGNAL_BATCH_PUT    = "BPUT"
