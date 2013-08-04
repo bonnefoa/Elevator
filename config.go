@@ -8,6 +8,7 @@ type Config struct {
 	*CoreConfig
 	*StorageEngineConfig
 	*LogConfiguration
+	*leveldb.Options
 }
 
 type CoreConfig struct {
@@ -35,10 +36,13 @@ type LogConfiguration struct {
 }
 
 func NewConfig() *Config {
+	storage := NewStorageEngineConfig()
+	levelDbOptions := storage.ToLeveldbOptions()
 	return &Config{
 		NewCoreConfig(),
-		NewStorageEngineConfig(),
+		storage,
 		NewLogConfiguration(),
+		levelDbOptions,
 	}
 }
 
@@ -73,7 +77,7 @@ func NewStorageEngineConfig() *StorageEngineConfig {
 	}
 }
 
-func (opts *StorageEngineConfig) ToLeveldbOptions() *leveldb.Options {
+func (opts StorageEngineConfig) ToLeveldbOptions() *leveldb.Options {
 	options := leveldb.NewOptions()
 
 	options.SetCreateIfMissing(true)

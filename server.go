@@ -51,7 +51,7 @@ func handleRequest(client_socket *ClientSocket, raw_msg []byte, db_store *DbStor
 	if found_db {
 		if db, ok := db_store.Container[request.DbUid]; ok {
 			if db.Status == DB_STATUS_UNMOUNTED {
-				db.Mount()
+				db.Mount(db_store.Config.Options)
 			}
 			db.Channel <- request
 		} else {

@@ -9,22 +9,20 @@ import (
 )
 
 type Db struct {
-	Name      string               `json:"name"`
-	Uid       string               `json:"uid"`
-	Path      string               `json:"path"`
-	Options   *StorageEngineConfig `json:"-"`
-	Status    int                  `json:"-"`
-	Connector *leveldb.DB          `json:"-"`
-	Channel   chan *Request        `json:"-"`
+	Name      string        `json:"name"`
+	Uid       string        `json:"uid"`
+	Path      string        `json:"path"`
+	Status    int           `json:"-"`
+	Connector *leveldb.DB   `json:"-"`
+	Channel   chan *Request `json:"-"`
 }
 
-func NewDb(db_name string, path string, config *StorageEngineConfig) *Db {
+func NewDb(db_name string, path string) *Db {
 	return &Db{
 		Name:    db_name,
 		Path:    path,
 		Uid:     uuid.New(),
 		Status:  DB_STATUS_UNMOUNTED,
-		Options: config,
 		Channel: make(chan *Request),
 	}
 }
@@ -45,26 +43,24 @@ func (db *Db) StartRoutine() {
 
 // Mount sets the database status to DB_STATUS_MOUNTED
 // and instantiates the according leveldb connector
-func (db *Db) Mount() (err error) {
+func (db *Db) Mount(options *leveldb.Options) (err error) {
 	if db.Status == DB_STATUS_UNMOUNTED {
-		db.Connector, err = leveldb.Open(db.Path, db.Options.ToLeveldbOptions())
+		db.Connector, err = leveldb.Open(db.Path, options)
 		if err != nil {
 			return err
 		}
-
 		db.Status = DB_STATUS_MOUNTED
 		db.Channel = make(chan *Request)
 		go db.StartRoutine()
 	} else {
-		error := errors.New(fmt.Sprintf("Database %s already mounted", db.Name))
+		error := errors.New(fmt.Sprintf("Database %s already mounted",
+			db.Name))
 		l4g.Error(error)
 		return error
 	}
-
 	l4g.Debug(func() string {
 		return fmt.Sprintf("Database %s mounted", db.Name)
 	})
-
 	return nil
 }
 

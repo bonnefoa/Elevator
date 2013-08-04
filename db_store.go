@@ -12,8 +12,8 @@ import (
 
 type DbStore struct {
 	*Config
-	Container   map[string]*Db
-	NameToUid   map[string]string
+	Container map[string]*Db
+	NameToUid map[string]string
 }
 
 // DbStore constructor
@@ -92,7 +92,7 @@ func (store *DbStore) Load() (err error) {
 func (store *DbStore) Mount(db_uid string) (err error) {
 
 	if db, present := store.Container[db_uid]; present {
-		err = db.Mount()
+		err = db.Mount(store.Config.Options)
 		if err != nil {
 			return err
 		}
@@ -153,7 +153,7 @@ func (store *DbStore) Add(db_name string) (err error) {
 			db_path = filepath.Join(store.StoragePath, db_name)
 		}
 
-		db := NewDb(db_name, db_path, store.StorageEngineConfig)
+		db := NewDb(db_name, db_path)
 		store.Container[db.Uid] = db
 		store.updateNameToUidIndex()
 		err = store.WriteToFile()
@@ -161,11 +161,11 @@ func (store *DbStore) Add(db_name string) (err error) {
 			l4g.Error(err)
 			return err
 		}
-                err = db.Mount()
-                if err != nil {
-                        l4g.Error(err)
-                        return err
-                }
+		err = db.Mount(store.Config.Options)
+		if err != nil {
+			l4g.Error(err)
+			return err
+		}
 	}
 
 	l4g.Debug(func() string {
