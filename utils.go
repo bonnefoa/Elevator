@@ -3,11 +3,11 @@ package elevator
 import (
 	"bytes"
 	"github.com/ugorji/go/codec"
-	"os"
-	"strings"
-	"os/signal"
-	"syscall"
 	"log"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
 )
 
 func DirExists(path string) (bool, error) {
@@ -55,12 +55,13 @@ func Btoi(b bool) int {
 	return 0
 }
 
+var msgpackHandler = codec.MsgpackHandle{}
+
 // PackInto method fulfills serializes a value
 // into a msgpacked response message
 func PackInto(v interface{}, buffer *bytes.Buffer) error {
 	ptr_v := &v
-	var handler codec.MsgpackHandle
-	enc := codec.NewEncoder(buffer, &handler)
+	enc := codec.NewEncoder(buffer, &msgpackHandler)
 	err := enc.Encode(ptr_v)
 	if err != nil {
 		return err
@@ -72,8 +73,7 @@ func PackInto(v interface{}, buffer *bytes.Buffer) error {
 // serialized request message.
 func UnpackFrom(v interface{}, data *bytes.Buffer) error {
 	ptr_v := &v
-	var handler codec.MsgpackHandle
-	dec := codec.NewDecoder(data, &handler)
+	dec := codec.NewDecoder(data, &msgpackHandler)
 	err := dec.Decode(ptr_v)
 	if err != nil {
 		return err
@@ -90,5 +90,5 @@ func SetupExitChannel() chan bool {
 		log.Printf("Received signal '%v', exiting\n", sig)
 		exitChannel <- true
 	}()
-    return exitChannel
+	return exitChannel
 }
