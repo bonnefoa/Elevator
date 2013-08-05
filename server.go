@@ -44,7 +44,7 @@ func handleRequest(client_socket *ClientSocket, raw_msg []byte, db_store *DbStor
 	// Deserialize request message and fulfill request
 	// obj with it's content
 	UnpackFrom(request, msg)
-	request.Source = client_socket
+	request.source = client_socket
 	l4g.Debug(func() string { return request.String() })
 
 	_, found_db := database_commands[request.Command]
@@ -90,11 +90,11 @@ func forwardResponse(response *Response, request *Request) error {
 
 	var err error
 	var response_buf bytes.Buffer
-	var socket *zmq.Socket = &request.Source.Socket
+	var socket *zmq.Socket = &request.source.Socket
 
 	PackInto(response, &response_buf)
 
-	parts := request.Source.Id
+	parts := request.source.Id
 	parts = append(parts, response_buf.Bytes())
 	for {
 		err = socket.SendMultipart(parts, 0)

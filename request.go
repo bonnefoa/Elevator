@@ -12,7 +12,7 @@ type Request struct {
 	DbUid   string
 	Command string
 	Args    []string
-	Source  *ClientSocket `msgpack:"-"`
+	source  *ClientSocket `msgpack:"-"`
 }
 
 // String represents the Request as a normalized string
