@@ -17,19 +17,18 @@ type cliState struct {
 }
 
 func writeHelp() {
-	fmt.Println("help write this message")
-	fmt.Println("quit stop the program")
+	fmt.Println("HELP write this message")
+	fmt.Println("QUIT stop the program")
 
 	fmt.Println("DBCREATE  <dbname>")
 	fmt.Println("DBDROP    <dbname>")
 	fmt.Println("DBCONNECT <dbname>")
 	fmt.Println("DBLIST")
 	fmt.Println("GET <key>")
+	fmt.Println("RANGE <first key> <last key>")
+	fmt.Println("MGET <key1> <key2> ...")
 	fmt.Println("PUT <key> <value>")
-}
-
-func writeUnrecognized() {
-	fmt.Println("Unrecognized command. Use 'help'.")
+	fmt.Println("BATCH BPUT <key> <value> BDEL <key>")
 }
 
 func processRequest(line string, state *cliState, socket *zmq.Socket) *elevator.Request {
@@ -69,11 +68,11 @@ func cliLoop(state *cliState) {
 			}
 			fmt.Println("Unexpected error : %s", err)
 		}
-		if line == "help" {
+		if upperString == "HELP" {
 			writeHelp()
 			continue
 		}
-		if line == "quit" {
+		if upperString == "QUIT" {
 			return
 		}
 		request := processRequest(line, state, state.socket)
