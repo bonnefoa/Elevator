@@ -26,7 +26,7 @@ func RequestFromString(req string) (*Request, error) {
 	if len(words) == 0 {
 		return nil, errors.New("Empty request")
 	}
-	cmd := words[0]
+	cmd := strings.ToUpper(words[0])
 	_, exist_store := store_commands[cmd]
 	_, exist_db := database_commands[cmd]
 	if exist_store || exist_db {

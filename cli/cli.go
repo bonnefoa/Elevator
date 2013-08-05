@@ -47,8 +47,9 @@ func processRequest(line string, state *cliState, socket *zmq.Socket) *elevator.
 
 func completionHandler(str string) []string {
 	res := []string{}
+	upperString := strings.ToUpper(str)
 	for _, cmd := range elevator.CommandsList {
-		if strings.HasPrefix(cmd, str) {
+		if strings.HasPrefix(cmd, upperString) {
 			res = append(res, cmd)
 		}
 	}
@@ -62,6 +63,7 @@ func cliLoop(state *cliState) {
 			prompt = fmt.Sprintf("(%s)> ", *state.currentDb)
 		}
 		line, err := linenoise.Line(prompt)
+		upperString := strings.ToUpper(line)
 		if err != nil {
 			if err == linenoise.KillSignalError {
 				return
