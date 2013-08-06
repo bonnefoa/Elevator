@@ -3,6 +3,7 @@ package elevator
 import (
 	"bytes"
 	"github.com/ugorji/go/codec"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -59,7 +60,7 @@ var msgpackHandler = codec.MsgpackHandle{}
 
 // PackInto method fulfills serializes a value
 // into a msgpacked response message
-func PackInto(v interface{}, buffer *bytes.Buffer) error {
+func PackInto(v interface{}, buffer io.Writer) error {
 	ptr_v := &v
 	enc := codec.NewEncoder(buffer, &msgpackHandler)
 	err := enc.Encode(ptr_v)
@@ -71,7 +72,7 @@ func PackInto(v interface{}, buffer *bytes.Buffer) error {
 
 // UnpackFrom method fulfills a value from a received
 // serialized request message.
-func UnpackFrom(v interface{}, data *bytes.Buffer) error {
+func UnpackFrom(v interface{}, data io.Reader) error {
 	ptr_v := &v
 	dec := codec.NewDecoder(data, &msgpackHandler)
 	err := dec.Decode(ptr_v)
