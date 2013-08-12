@@ -97,7 +97,7 @@ func (store *DbStore) Mount(db_uid string) (err error) {
 			return err
 		}
 	} else {
-		error := errors.New(fmt.Sprintf("Database with uid %s does not exist", db_uid))
+		error := fmt.Errorf("Database with uid %s does not exist", db_uid)
 		l4g.Error(error)
 		return error
 	}
@@ -114,7 +114,7 @@ func (store *DbStore) Unmount(db_uid string) (err error) {
 			return err
 		}
 	} else {
-		error := errors.New(fmt.Sprintf("Database with uid %s does not exist", db_uid))
+		error := fmt.Errorf("Database with uid %s does not exist", db_uid)
 		l4g.Error(error)
 		return error
 	}
@@ -145,7 +145,7 @@ func (store *DbStore) Add(db_name string) (err error) {
 				l4g.Error(err)
 				return err
 			} else if !exists {
-				error := errors.New(fmt.Sprintf("%s does not exist", dir))
+				error := fmt.Errorf("%s does not exist", dir)
 				l4g.Error(error)
 				return error
 			}
@@ -193,7 +193,7 @@ func (store *DbStore) Drop(db_name string) (err error) {
 			return err
 		}
 	} else {
-		error := errors.New(fmt.Sprintf("Database %s does not exist", db_name))
+		error := fmt.Errorf("Database %s does not exist", db_name)
 		l4g.Error(error)
 		return error
 	}

@@ -2,7 +2,6 @@ package elevator
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	zmq "github.com/alecthomas/gozmq"
 	l4g "github.com/alecthomas/log4go"
@@ -77,7 +76,7 @@ func processRequest(db *Db, request *Request) (*Response, error) {
 		response, _ := f(db, request)
 		return response, nil
 	}
-	error := errors.New(fmt.Sprintf("Unknown command %s", request.Command))
+	error := fmt.Errorf("Unknown command %s", request.Command)
 	l4g.Error(error)
 
 	return nil, error

@@ -2,7 +2,6 @@ package elevator
 
 import (
 	uuid "code.google.com/p/go-uuid/uuid"
-	"errors"
 	"fmt"
 	l4g "github.com/alecthomas/log4go"
 	leveldb "github.com/jmhodges/levigo"
@@ -53,8 +52,7 @@ func (db *Db) Mount(options *leveldb.Options) (err error) {
 		db.Channel = make(chan *Request)
 		go db.StartRoutine()
 	} else {
-		error := errors.New(fmt.Sprintf("Database %s already mounted",
-			db.Name))
+		error := fmt.Errorf("Database %s already mounted", db.Name)
 		l4g.Error(error)
 		return error
 	}
@@ -72,7 +70,7 @@ func (db *Db) Unmount() (err error) {
 		close(db.Channel)
 		db.Status = DB_STATUS_UNMOUNTED
 	} else {
-		error := errors.New(fmt.Sprintf("Database %s already unmounted", db.Name))
+		error := fmt.Errorf("Database %s already unmounted", db.Name)
 		l4g.Error(error)
 		return error
 	}
