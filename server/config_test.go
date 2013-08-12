@@ -1,4 +1,4 @@
-package elevator
+package server
 
 import (
 	"flag"

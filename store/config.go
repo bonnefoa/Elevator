@@ -1,20 +1,15 @@
-package elevator
+package store
 
 import (
 	leveldb "github.com/jmhodges/levigo"
 )
 
-type Config struct {
+type StoreConfig struct {
 	*CoreConfig
-	*StorageEngineConfig
-	*LogConfiguration
 	*leveldb.Options
 }
 
 type CoreConfig struct {
-	Daemon      bool   `ini:"daemonize" short:"d" description:"Launches elevator as a daemon"`
-	Endpoint    string `ini:"endpoint" short:"e" description:"Endpoint to bind elevator to"`
-	Pidfile     string `ini:"pidfile"`
 	StorePath   string `ini:"database_store"`
 	StoragePath string `ini:"databases_storage_path"`
 	DefaultDb   string `ini:"default_db"`
@@ -30,39 +25,19 @@ type StorageEngineConfig struct {
 	WriteBufferSize int  `ini:"write_buffer_size"` // default: 64 * 1048576 (64MB)
 }
 
-type LogConfiguration struct {
-	LogFile  string `ini:"log_file"`
-	LogLevel string `ini:"log_level" short:"l" description:"Sets elevator verbosity"`
-}
-
-func NewConfig() *Config {
-	storage := NewStorageEngineConfig()
-	levelDbOptions := storage.ToLeveldbOptions()
-	return &Config{
-		NewCoreConfig(),
-		storage,
-		NewLogConfiguration(),
-		levelDbOptions,
-	}
+func NewStoreConfig() *StoreConfig {
+	core := NewCoreConfig()
+	options := NewStorageEngineConfig().ToLeveldbOptions()
+	return &StoreConfig { core, options }
 }
 
 func NewCoreConfig() *CoreConfig {
 	c := &CoreConfig{
-		Daemon:      false,
-		Endpoint:    DEFAULT_ENDPOINT,
-		Pidfile:     "/var/run/elevator.pid",
 		StorePath:   "/var/lib/elevator/store.json",
 		StoragePath: "/var/lib/elevator",
 		DefaultDb:   "default",
 	}
 	return c
-}
-
-func NewLogConfiguration() *LogConfiguration {
-	return &LogConfiguration{
-		LogFile:  "/var/log/elevator.log",
-		LogLevel: "INFO",
-	}
 }
 
 func NewStorageEngineConfig() *StorageEngineConfig {
@@ -79,7 +54,6 @@ func NewStorageEngineConfig() *StorageEngineConfig {
 
 func (opts StorageEngineConfig) ToLeveldbOptions() *leveldb.Options {
 	options := leveldb.NewOptions()
-
 	options.SetCreateIfMissing(true)
 	options.SetCompression(leveldb.CompressionOpt(Btoi(opts.Compression)))
 	options.SetBlockSize(opts.BlockSize)
@@ -88,30 +62,5 @@ func (opts StorageEngineConfig) ToLeveldbOptions() *leveldb.Options {
 	options.SetMaxOpenFiles(opts.MaxOpenFiles)
 	options.SetParanoidChecks(opts.VerifyChecksums)
 	options.SetWriteBufferSize(opts.WriteBufferSize)
-
 	return options
-}
-
-func (opts *StorageEngineConfig) UpdateFromConfig(config *Config) {
-	opts.Compression = config.Compression
-	opts.BlockSize = config.BlockSize
-	opts.CacheSize = config.CacheSize
-	opts.BloomFilterBits = config.BloomFilterBits
-	opts.MaxOpenFiles = config.MaxOpenFiles
-	opts.VerifyChecksums = config.VerifyChecksums
-	opts.WriteBufferSize = config.WriteBufferSize
-}
-
-func ConfFromFile(path string) (*Config, error) {
-	conf := NewConfig()
-	if err := LoadConfigFromFile(path, conf.CoreConfig, "core"); err != nil {
-		return conf, err
-	}
-	if err := LoadConfigFromFile(path, conf.StorageEngineConfig, "storage_engine"); err != nil {
-		return conf, err
-	}
-	if err := LoadConfigFromFile(path, conf.LogConfiguration, "log"); err != nil {
-		return conf, err
-	}
-	return conf, nil
 }

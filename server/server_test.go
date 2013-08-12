@@ -1,4 +1,4 @@
-package elevator
+package server
 
 import (
 	"bytes"
@@ -6,6 +6,35 @@ import (
 	zmq "github.com/alecthomas/gozmq"
 	"testing"
 )
+
+//func getTestConf() *Config {
+	//logConfig := &LogConfiguration{
+		//LogFile:  "test/elevator.log",
+		//LogLevel: "INFO",
+	//}
+	//storePath, _ := ioutil.TempFile("/tmp", "elevator_store")
+	//storagePath, _ := ioutil.TempDir("/tmp", "elevator_path")
+
+	//core := &CoreConfig{
+		//Daemon:      false,
+		//Endpoint:    "tcp://127.0.0.1:4141",
+		//Pidfile:     "test/elevator.pid",
+		//StorePath:   storePath.Name(),
+		//StoragePath: storagePath,
+		//DefaultDb:   "default",
+	//}
+	//storage := NewStorageEngineConfig()
+	//options := storage.ToLeveldbOptions()
+	//config := &Config{
+		//core,
+		//storage,
+		//logConfig,
+		//options,
+	//}
+	//l4g.AddFilter("stdout", l4g.INFO, l4g.NewConsoleLogWriter())
+	//return config
+//}
+
 
 func TestPackUnpackRequest(t *testing.T) {
 	var buffer bytes.Buffer
@@ -79,7 +108,40 @@ func BenchmarkServerGet(b *testing.B) {
 			req.SendRequest(socket)
 			response = ReceiveResponse(socket)
 		}
+		b.StopTimer()
 		b.Logf("Finished %d queries", b.N)
 	}
 	TemplateServerTest(b, f)
+}
+
+func TemplateServerTest(t Tester, f func(*zmq.Socket, string)) {
+	c := getTestConf()
+	defer cleanConfTemp(c)
+	exitSignal := make(chan bool)
+	go ListenAndServe(c, exitSignal)
+	defer func() {
+		exitSignal <- true
+		<-exitSignal
+	}()
+
+	context, _ := zmq.NewContext()
+	socket, _ := context.NewSocket(zmq.REQ)
+	socket.Connect(c.Endpoint)
+
+	req := Request{Command: DB_CREATE, Args: []string{TestDb}}
+	req.SendRequest(socket)
+	response := ReceiveResponse(socket)
+	if response.Status != SUCCESS_STATUS {
+		t.Fatalf("Error on db creation %v (test conf was %q)",
+			response, c)
+	}
+	req = Request{Command: DB_CONNECT, Args: []string{TestDb}}
+	req.SendRequest(socket)
+	response = ReceiveResponse(socket)
+	if response.Status != SUCCESS_STATUS {
+		t.Fatalf("Error on db connection %q", response)
+	}
+
+	uid := response.Data[0]
+	f(socket, uid)
 }

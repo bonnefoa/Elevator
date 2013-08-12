@@ -1,4 +1,4 @@
-package elevator
+package server
 
 import (
 	l4g "github.com/alecthomas/log4go"

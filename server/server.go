@@ -1,20 +1,16 @@
-package elevator
+package server
 
 import (
 	"bytes"
 	"fmt"
 	zmq "github.com/alecthomas/gozmq"
 	l4g "github.com/alecthomas/log4go"
+	store "github.com/oleiade/Elevator/store"
 	"log"
 	"time"
 )
 
 var eint_error = "interrupted system call"
-
-type ClientSocket struct {
-	Id     [][]byte
-	Socket zmq.Socket
-}
 
 // Creates and binds the zmq socket for the server
 // to listen on
@@ -36,50 +32,30 @@ func buildServerSocket(endpoint string) (*zmq.Socket, *zmq.Context, error) {
 
 // handleRequest deserializes the input msgpack request,
 // processes it and ensures it is forwarded to the client.
-func handleRequest(client_socket *ClientSocket, raw_msg []byte, db_store *DbStore) {
-	var request *Request = new(Request)
-	var msg *bytes.Buffer = bytes.NewBuffer(raw_msg)
-
+func handleRequest(parts [][]byte, dbStore *store.DbStore) {
 	// Deserialize request message and fulfill request
 	// obj with it's content
-	UnpackFrom(request, msg)
-	request.source = client_socket
+	request := store.PartsToRequest(parts)
 	l4g.Debug(func() string { return request.String() })
-
-	_, found_db := database_commands[request.Command]
-	if found_db {
-		if db, ok := db_store.Container[request.DbUid]; ok {
-			if db.Status == DB_STATUS_UNMOUNTED {
-				db.Mount(db_store.Config.Options)
-			}
-			db.Channel <- request
-		} else {
-			l4g.Error("Could not find %s in container %q",
-				request.DbUid, db_store.Container)
-			response := NewFailureResponse(KEY_ERROR,
-				fmt.Sprintf("Could not find dbuid %q", request.DbUid))
-			forwardResponse(response, request)
-		}
-	} else {
-		response, err := store_commands[request.Command](db_store, request)
+	_, found_db := databaseComands[request.Command]
+	if !found_db {
+		l4g.Error("Could not find %s in container %q", request.DbUid, dbStore.Container)
+		dbError := &DbError{ KEY_ERROR, request.Args, fmt.Errorf("Could not find dbuid %q", request.DbUid)}
+		response := NewFailureResponse(dbError)
+		forwardResponse(response, request)
+	}
+	db, ok := dbStore.Container[request.DbUid]
+	if !ok {
+		response, err := storeCommands[request.Command](dbStore, request.Args)
 		if err != nil {
 			l4g.Error(err)
 		}
 		forwardResponse(response, request)
 	}
-}
-
-// processRequest executes the received request command, and returns
-// the resulting response.
-func processRequest(db *Db, request *Request) (*Response, error) {
-	if f, ok := database_commands[request.Command]; ok {
-		response, _ := f(db, request)
-		return response, nil
+	if db.Status == DB_STATUS_UNMOUNTED {
+		db.Mount(dbStore.Config.Options)
 	}
-	error := fmt.Errorf("Unknown command %s", request.Command)
-	l4g.Error(error)
-
-	return nil, error
+	db.Channel <- request
 }
 
 // forwardResponse takes a request-response pair as input and
@@ -146,10 +122,10 @@ func ListenAndServe(config *Config, exitSignal chan bool) {
 		log.Fatal(err)
 	}
 	// Load database store
-	db_store := NewDbStore(config)
-	err = db_store.Load()
+	dbStore := NewDbStore(config)
+	err = dbStore.Load()
 	if err != nil {
-		err = db_store.Add("default")
+		err = dbStore.Add("default")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -157,7 +133,7 @@ func ListenAndServe(config *Config, exitSignal chan bool) {
 	pollChan := make(chan [][]byte)
 
 	defer func() {
-		db_store.UnmountAll()
+		dbStore.UnmountAll()
 		socket.Close()
 		context.Close()
 		close(exitSignal)
@@ -172,12 +148,7 @@ func ListenAndServe(config *Config, exitSignal chan bool) {
 			if len(parts) < 3 {
 				continue
 			}
-			client_socket := ClientSocket{
-				Id:     parts[0:2],
-				Socket: *socket,
-			}
-			msg := parts[2]
-			go handleRequest(&client_socket, msg, db_store)
+			go handleRequest(&parts, dbStore)
 		case <-exitSignal:
 			l4g.Info("Exiting server")
 			return

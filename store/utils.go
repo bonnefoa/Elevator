@@ -1,4 +1,4 @@
-package elevator
+package store
 
 import (
 	"bytes"

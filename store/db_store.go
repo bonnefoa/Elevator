@@ -1,4 +1,4 @@
-package elevator
+package store
 
 import (
 	"encoding/json"
@@ -11,13 +11,13 @@ import (
 )
 
 type DbStore struct {
-	*Config
+	*StoreConfig
 	Container map[string]*Db
 	NameToUid map[string]string
 }
 
 // DbStore constructor
-func NewDbStore(config *Config) *DbStore {
+func NewDbStore(config *StoreConfig) *DbStore {
 	return &DbStore{
 		config,
 		make(map[string]*Db),
@@ -40,14 +40,11 @@ func (store *DbStore) ReadFromFile() (err error) {
 	if err != nil {
 		return err
 	}
-
 	err = json.Unmarshal(data, &store.Container)
 	if err != nil {
 		return err
 	}
-
 	store.updateNameToUidIndex()
-
 	return nil
 }
 
@@ -55,24 +52,20 @@ func (store *DbStore) ReadFromFile() (err error) {
 // to the store description file
 func (store *DbStore) WriteToFile() (err error) {
 	var data []byte
-
 	// Check the directory hosting the store exists
 	store_base_path := filepath.Dir(store.StorePath)
 	_, err = os.Stat(store_base_path)
 	if os.IsNotExist(err) {
 		return err
 	}
-
 	data, err = json.Marshal(store.Container)
 	if err != nil {
 		return err
 	}
-
 	err = ioutil.WriteFile(store.StorePath, data, 0777)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -83,16 +76,14 @@ func (store *DbStore) Load() (err error) {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
 // Mount sets the database status to DB_STATUS_MOUNTED
 // and instantiates the according leveldb connector
 func (store *DbStore) Mount(db_uid string) (err error) {
-
 	if db, present := store.Container[db_uid]; present {
-		err = db.Mount(store.Config.Options)
+		err = db.Mount(store.StoreConfig.Options)
 		if err != nil {
 			return err
 		}
@@ -101,7 +92,6 @@ func (store *DbStore) Mount(db_uid string) (err error) {
 		l4g.Error(error)
 		return error
 	}
-
 	return nil
 }
 
@@ -118,7 +108,6 @@ func (store *DbStore) Unmount(db_uid string) (err error) {
 		l4g.Error(error)
 		return error
 	}
-
 	return nil
 }
 
@@ -136,7 +125,6 @@ func (store *DbStore) Add(db_name string) (err error) {
 				l4g.Error(error)
 				return error
 			}
-
 			db_path = db_name
 			// Check base db path exists
 			dir := filepath.Dir(db_name)
@@ -152,7 +140,6 @@ func (store *DbStore) Add(db_name string) (err error) {
 		} else {
 			db_path = filepath.Join(store.StoragePath, db_name)
 		}
-
 		db := NewDb(db_name, db_path)
 		store.Container[db.Uid] = db
 		store.updateNameToUidIndex()
@@ -161,17 +148,15 @@ func (store *DbStore) Add(db_name string) (err error) {
 			l4g.Error(err)
 			return err
 		}
-		err = db.Mount(store.Config.Options)
+		err = db.Mount(store.StoreConfig.Options)
 		if err != nil {
 			l4g.Error(err)
 			return err
 		}
 	}
-
 	l4g.Debug(func() string {
 		return fmt.Sprintf("Database %s added to store", db_name)
 	})
-
 	return nil
 }
 
@@ -197,22 +182,19 @@ func (store *DbStore) Drop(db_name string) (err error) {
 		l4g.Error(error)
 		return error
 	}
-
 	l4g.Debug(func() string {
 		return fmt.Sprintf("Database %s dropped from store", db_name)
 	})
-
 	return nil
 }
 
 // Status returns a database status defined by constants
 // DB_STATUS_MOUNTED and DB_STATUS_UNMOUNTED
-func (store *DbStore) Status(db_name string) (int, error) {
+func (store *DbStore) Status(db_name string) (DbMountedStatus, error) {
 	if db_uid, present := store.NameToUid[db_name]; present {
 		db := store.Container[db_uid]
-		return db.Status, nil
+		return db.status, nil
 	}
-
 	return -1, errors.New("Database does not exist")
 }
 
@@ -221,12 +203,10 @@ func (store *DbStore) Status(db_name string) (int, error) {
 func (store *DbStore) Exists(db_name string) (bool, error) {
 	if db_uid, present := store.NameToUid[db_name]; present {
 		db := store.Container[db_uid]
-
 		exists, err := DirExists(db.Path)
 		if err != nil {
 			return false, err
 		}
-
 		if exists == true {
 			return exists, nil
 		} else {
@@ -234,29 +214,14 @@ func (store *DbStore) Exists(db_name string) (bool, error) {
 			fmt.Println("Dropping")
 		}
 	}
-
 	return false, nil
 }
 
 func (store *DbStore) UnmountAll() {
 	l4g.Debug("Closing dbstore")
 	for _, db := range store.Container {
-		if db.Status == DB_STATUS_MOUNTED {
+		if db.status == DB_STATUS_MOUNTED {
 			db.Unmount()
 		}
 	}
-}
-
-// List enumerates  all the databases
-// in DbStore
-func (store *DbStore) List() []string {
-	db_names := make([]string, len(store.Container))
-
-	i := 0
-	for _, db := range store.Container {
-		db_names[i] = db.Name
-		i++
-	}
-
-	return db_names
 }

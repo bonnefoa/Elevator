@@ -1,18 +1,17 @@
-package elevator
+package store
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
 	zmq "github.com/alecthomas/gozmq"
-	"strings"
 )
 
 type Request struct {
 	DbUid   string
 	Command string
-	Args    []string
-	source  *ClientSocket `msgpack:"-"`
+	Args    [][]byte
+	Id      [][]byte
 }
 
 // String represents the Request as a normalized string
@@ -21,14 +20,14 @@ func (r *Request) String() string {
 		r.DbUid, r.Command, r.Args)
 }
 
-func RequestFromString(req string) (*Request, error) {
-	words := strings.Split(req, " ")
+func RequestFromByte(req []byte) (*Request, error) {
+	words := bytes.Split(req, []byte(" "))
 	if len(words) == 0 {
 		return nil, errors.New("Empty request")
 	}
-	cmd := strings.ToUpper(words[0])
-	_, exist_store := store_commands[cmd]
-	_, exist_db := database_commands[cmd]
+	cmd := string(bytes.ToUpper(words[0]))
+	_, exist_store := storeCommands[cmd]
+	_, exist_db := databaseComands[cmd]
 	if exist_store || exist_db {
 		args := words[1:]
 		return &Request{Command: cmd, Args: args}, nil
@@ -41,4 +40,20 @@ func (request *Request) SendRequest(socket *zmq.Socket) {
 	var buffer bytes.Buffer
 	PackInto(request, &buffer)
 	socket.SendMultipart([][]byte{buffer.Bytes()}, 0)
+}
+
+func PartsToRequest(parts [][]byte) (*Request, error) {
+	var request *Request
+	id := parts[0:2]
+	rawMsg := parts[2]
+	var msg *bytes.Buffer = bytes.NewBuffer(rawMsg)
+	UnpackFrom(request, msg)
+	request.Id = id
+
+	_, foundDbCommand := databaseComands[request.Command]
+	_, foundStoreCommand := storeCommands[request.Command]
+	if !foundDbCommand && !foundStoreCommand {
+		return nil, UnknownCommand(request.Command)
+	}
+	return request, nil
 }
