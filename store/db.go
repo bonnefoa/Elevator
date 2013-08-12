@@ -7,6 +7,11 @@ import (
 	leveldb "github.com/jmhodges/levigo"
 )
 
+type DbResult struct {
+	Data [][]byte
+	Err error
+}
+
 type Db struct {
 	Name         string          `json:"name"`
 	Uid          string          `json:"uid"`
@@ -14,7 +19,7 @@ type Db struct {
 	status       DbMountedStatus `json:"-"`
 	connector    *leveldb.DB     `json:"-"`
 	requestChan  chan *Request   `json:"-"`
-	responseChan chan *Response  `json:"-"`
+	responseChan chan *DbResult  `json:"-"`
 }
 
 func NewDb(db_name string, path string) *Db {
@@ -24,7 +29,7 @@ func NewDb(db_name string, path string) *Db {
 		Uid:          uuid.New(),
 		status:       DB_STATUS_UNMOUNTED,
 		requestChan:  make(chan *Request),
-		responseChan: make(chan *Response),
+		responseChan: make(chan *DbResult),
 	}
 }
 
@@ -47,17 +52,14 @@ func processRequest(db *Db, command string, args [][]byte) ([][]byte, error) {
 func (db *Db) StartRoutine() {
 	for request := range db.requestChan {
 		res, err := processRequest(db, request.Command, request.Args)
-		status := ErrorToStatusCode(err)
 		if err != nil {
 			l4g.Error(err)
 		}
-		response := &Response{
-			Status:status,
-			ErrMsg:err.Error(),
+		result := &DbResult{
 			Data:res,
-			Id:request.Id,
+			Err:err,
 		}
-		db.responseChan <- response
+		db.responseChan <- result
 	}
 }
 
@@ -71,7 +73,7 @@ func (db *Db) Mount(options *leveldb.Options) (err error) {
 		}
 		db.status = DB_STATUS_MOUNTED
 		db.requestChan = make(chan *Request, 100)
-		db.responseChan = make(chan *Response, 100)
+		db.responseChan = make(chan *DbResult, 100)
 		go db.StartRoutine()
 	} else {
 		error := fmt.Errorf("Database %s already mounted", db.Name)

@@ -11,6 +11,14 @@ import (
 	"syscall"
 )
 
+func toBytes(args...string) [][]byte {
+	res := make([][]byte, len(args))
+	for i, v := range args {
+		res[i] = []byte(v)
+	}
+	return res
+}
+
 func DirExists(path string) (bool, error) {
 	file_info, err := os.Stat(path)
 	if err != nil {

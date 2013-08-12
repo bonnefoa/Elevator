@@ -6,14 +6,6 @@ import (
 	"reflect"
 )
 
-func toBytes(args...string) [][]byte {
-	res := make([][]byte, len(args))
-	for i, v := range args {
-		res[i] = []byte(v)
-	}
-	return res
-}
-
 var testOperationDatas = []struct {
 	op             string
 	request        [][]byte

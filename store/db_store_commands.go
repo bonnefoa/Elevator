@@ -6,7 +6,7 @@ import (
 
 var NO_SUCH_DB = errors.New("Database does not exist")
 
-var storeCommands = map[string]func(*DbStore, [][]byte) ([]string, error){
+var storeCommands = map[string]func(*DbStore, [][]byte) ([][]byte, error){
 	DB_CREATE:  DbCreate,
 	DB_DROP:    DbDrop,
 	DB_CONNECT: DbConnect,
@@ -27,8 +27,7 @@ func (store *DbStore) List() []string {
 	return db_names
 }
 
-func DbCreate(db_store *DbStore, args [][]byte) ([]string, error) {
-	db_name := string(args[0])
+func DbCreate(db_store *DbStore, args [][]byte) ([][]byte, error) { db_name := string(args[0])
 	err := db_store.Add(db_name)
 	if err != nil {
 		return nil, DatabaseError(err)
@@ -36,7 +35,7 @@ func DbCreate(db_store *DbStore, args [][]byte) ([]string, error) {
 	return nil, nil
 }
 
-func DbDrop(db_store *DbStore, args [][]byte) ([]string, error) {
+func DbDrop(db_store *DbStore, args [][]byte) ([][]byte, error) {
 	db_name := string(args[0])
 	err := db_store.Drop(db_name)
 	if err != nil {
@@ -45,25 +44,25 @@ func DbDrop(db_store *DbStore, args [][]byte) ([]string, error) {
 	return nil, nil
 }
 
-func DbConnect(db_store *DbStore, args [][]byte) ([]string, error) {
+func DbConnect(db_store *DbStore, args [][]byte) ([][]byte, error) {
 	db_name := string(args[0])
 	db_uid, exists := db_store.NameToUid[db_name]
 	if !exists {
 		return nil, NoSuchDbError(db_name)
 	}
-	return []string{db_uid}, nil
+	return toBytes(db_uid), nil
 }
 
-func DbList(db_store *DbStore, args [][]byte) ([]string, error) {
+func DbList(db_store *DbStore, args [][]byte) ([][]byte, error) {
 	db_names := db_store.List()
-	data := make([]string, len(db_names))
+	data := make([][]byte, len(db_names))
 	for index, db_name := range db_names {
-		data[index] = db_name
+		data[index] = []byte(db_name)
 	}
 	return data, nil
 }
 
-func DbMount(db_store *DbStore, args [][]byte) ([]string, error) {
+func DbMount(db_store *DbStore, args [][]byte) ([][]byte, error) {
 	db_name := string(args[0])
 	db_uid, exists := db_store.NameToUid[db_name]
 	if !exists {
@@ -76,7 +75,7 @@ func DbMount(db_store *DbStore, args [][]byte) ([]string, error) {
 	return nil, nil
 }
 
-func DbUnmount(db_store *DbStore, args [][]byte) ([]string, error) {
+func DbUnmount(db_store *DbStore, args [][]byte) ([][]byte, error) {
 	db_name := string(args[0])
 	db_uid, exists := db_store.NameToUid[db_name]
 	if !exists {

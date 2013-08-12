@@ -225,3 +225,27 @@ func (store *DbStore) UnmountAll() {
 		}
 	}
 }
+
+// Redirect and execute given request as a db operation or a store operation
+func (dbStore *DbStore) HandleRequest(request *Request) ([][]byte, error) {
+	switch request.TypeCommand {
+	case STORE_COMMAND:
+		res, err := storeCommands[request.Command](dbStore, request.Args)
+		return res, err
+	case DB_COMMAND:
+		db, foundDb := dbStore.Container[request.DbUid]
+		if !foundDb {
+			return nil, NoSuchDbuidError(request.DbUid)
+		}
+		if db.status == DB_STATUS_UNMOUNTED {
+			err := db.Mount(dbStore.Options)
+			if err != nil {
+				return nil, err
+			}
+		}
+		db.requestChan <- request
+		result := <-db.responseChan
+		return result.Data, result.Err
+	}
+	return nil, UnknownCommand(request.Command)
+}

@@ -2,9 +2,16 @@ package store
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	zmq "github.com/alecthomas/gozmq"
+)
+
+type TypeCommand int
+
+const (
+	STORE_COMMAND = iota
+	DB_COMMAND
+	UNKNOWN_COMMAND
 )
 
 type Request struct {
@@ -12,6 +19,7 @@ type Request struct {
 	Command string
 	Args    [][]byte
 	Id      [][]byte
+	TypeCommand TypeCommand
 }
 
 // String represents the Request as a normalized string
@@ -20,20 +28,28 @@ func (r *Request) String() string {
 		r.DbUid, r.Command, r.Args)
 }
 
+func GetTypeRequest(command string) TypeCommand {
+	if _, foundStoreCommand := storeCommands[command]; foundStoreCommand {
+		return STORE_COMMAND
+	}
+	if _, foundDbCommand := databaseComands[command]; foundDbCommand {
+		return DB_COMMAND
+	}
+	return UNKNOWN_COMMAND
+}
+
 func RequestFromByte(req []byte) (*Request, error) {
 	words := bytes.Split(req, []byte(" "))
 	if len(words) == 0 {
-		return nil, errors.New("Empty request")
+		return nil, EmptyCommand(req)
 	}
 	cmd := string(bytes.ToUpper(words[0]))
-	_, exist_store := storeCommands[cmd]
-	_, exist_db := databaseComands[cmd]
-	if exist_store || exist_db {
-		args := words[1:]
-		return &Request{Command: cmd, Args: args}, nil
+	typeCommand := GetTypeRequest(cmd)
+	if typeCommand == UNKNOWN_COMMAND {
+		return nil, UnknownCommand(cmd)
 	}
-	return nil, errors.New(
-		fmt.Sprintf("Unknown command %s", req))
+	args := words[1:]
+	return &Request{Command: cmd, Args: args}, nil
 }
 
 func (request *Request) SendRequest(socket *zmq.Socket) {
@@ -50,10 +66,9 @@ func PartsToRequest(parts [][]byte) (*Request, error) {
 	UnpackFrom(request, msg)
 	request.Id = id
 
-	_, foundDbCommand := databaseComands[request.Command]
-	_, foundStoreCommand := storeCommands[request.Command]
-	if !foundDbCommand && !foundStoreCommand {
-		return nil, UnknownCommand(request.Command)
+	request.TypeCommand = GetTypeRequest(request.Command)
+	if request.TypeCommand == UNKNOWN_COMMAND {
+		return request, UnknownCommand(request.Command)
 	}
 	return request, nil
 }

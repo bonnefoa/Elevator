@@ -30,32 +30,54 @@ func buildServerSocket(endpoint string) (*zmq.Socket, *zmq.Context, error) {
 	return socket, context, nil
 }
 
+func ReceiveResponse(socket *zmq.Socket) *Response {
+	var response *Response
+	var parts [][]byte
+	var err error
+	for {
+		parts, err = socket.RecvMultipart(0)
+		if err == nil {
+			break
+		}
+	}
+	store.UnpackFrom(response, bytes.NewBuffer(parts[0]))
+	return response
+}
+
+func sendResponse(socket *zmq.Socket, response *Response) {
+	var response_buf bytes.Buffer
+	store.PackInto(response, &response_buf)
+}
+
+func sendErrorResponse(socket *zmq.Socket, id [][]byte, err error) {
+	response := ResponseFromError(id, err)
+	sendResponse(socket, response)
+}
+
 // handleRequest deserializes the input msgpack request,
 // processes it and ensures it is forwarded to the client.
-func handleRequest(parts [][]byte, dbStore *store.DbStore) {
+func handleRequest(dbStore *store.DbStore) {
 	// Deserialize request message and fulfill request
 	// obj with it's content
-	request := store.PartsToRequest(parts)
-	l4g.Debug(func() string { return request.String() })
-	_, found_db := databaseComands[request.Command]
-	if !found_db {
-		l4g.Error("Could not find %s in container %q", request.DbUid, dbStore.Container)
-		dbError := &DbError{ KEY_ERROR, request.Args, fmt.Errorf("Could not find dbuid %q", request.DbUid)}
-		response := NewFailureResponse(dbError)
-		forwardResponse(response, request)
-	}
-	db, ok := dbStore.Container[request.DbUid]
-	if !ok {
-		response, err := storeCommands[request.Command](dbStore, request.Args)
+	for {
+		request, err := store.PartsToRequest(parts)
 		if err != nil {
-			l4g.Error(err)
+			l4g.Info("Error on message reading %s", err)
+			sendErrorResponse(request.Id, err)
+			return
 		}
-		forwardResponse(response, request)
+		l4g.Debug(func() string { return request.String() })
+		res, err := dbStore.HandleRequest(request)
+		if err != nil {
+			sendErrorResponse(request.Id, err)
+		}
+		response := &Response {
+			Status:SUCCESS,
+			Data:res,
+			Id:request.Id,
+		}
+		sendResponse(response)
 	}
-	if db.Status == DB_STATUS_UNMOUNTED {
-		db.Mount(dbStore.Config.Options)
-	}
-	db.Channel <- request
 }
 
 // forwardResponse takes a request-response pair as input and
@@ -67,7 +89,6 @@ func forwardResponse(response *Response, request *Request) error {
 	var response_buf bytes.Buffer
 	var socket *zmq.Socket = &request.source.Socket
 
-	PackInto(response, &response_buf)
 
 	parts := request.source.Id
 	parts = append(parts, response_buf.Bytes())
