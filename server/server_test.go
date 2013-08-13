@@ -42,6 +42,7 @@ func getTestConf() *Config {
 		LogFile:  path.Join(tempDir, "elevator.log"),
 		LogLevel: "INFO",
 	}
+	ConfigureLogger(logConfig)
 
 	config.StoreConfig.CoreConfig.StorePath = path.Join(tempDir, "store")
 	config.StoreConfig.CoreConfig.StoragePath = tempDir
@@ -87,7 +88,8 @@ func (env *Env) setupEnv() {
 }
 
 func (env *Env) destroy() {
-	close(env.exitChannel)
+	env.exitChannel<- true
+	<-env.exitChannel
 	env.CleanConfiguration()
 }
 
@@ -102,7 +104,7 @@ func TestServer(t *testing.T) {
 		t.Fatalf("Error on db put %q", response)
 	}
 	req = store.Request{Command: store.DB_GET,
-		Args: store.ToBytes("key"), DbUid: env.uid}
+	Args: store.ToBytes("key"), DbUid: env.uid}
 	req.SendRequest(env.Socket)
 	response = ReceiveResponse(env.Socket)
 	if response.Status != SUCCESS {

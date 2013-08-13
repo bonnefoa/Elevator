@@ -14,12 +14,12 @@ const responseInproc = "inproc://response"
 
 type ServerState struct {
 	*zmq.Context
-	receiveSocket *zmq.Socket
-	monitorSocket *zmq.Socket
+	receiveSocket  *zmq.Socket
 	responseSocket *zmq.Socket
-	dbStore       *store.DbStore
+	dbStore        *store.DbStore
 	*Config
 	recvChannel chan [][]byte
+	exitChannel chan bool
 }
 
 // Creates and binds the zmq socket for the server
@@ -33,19 +33,7 @@ func (s *ServerState) initializeServer() (err error) {
 	if err != nil {
 		return
 	}
-	err = s.receiveSocket.Monitor(monitorInproc, zmq.EVENT_CLOSED)
-	if err != nil {
-		return
-	}
 	err = s.receiveSocket.Bind(s.Endpoint)
-	if err != nil {
-		return
-	}
-	s.monitorSocket, err = s.NewSocket(zmq.PAIR)
-	if err != nil {
-		return
-	}
-	err = s.monitorSocket.Connect(monitorInproc)
 	if err != nil {
 		return
 	}
@@ -62,13 +50,17 @@ func (s *ServerState) initializeServer() (err error) {
 }
 
 func (s *ServerState) closeServer() {
-	l4g.Info("Closing server state")
+	l4g.Info("Unmounting databases")
 	s.dbStore.UnmountAll()
+	l4g.Info("Closing receive socket")
 	s.receiveSocket.Close()
-	s.monitorSocket.Close()
+	l4g.Info("Closing response socket")
 	s.responseSocket.Close()
+	l4g.Info("Closing context")
 	s.Context.Close()
+	l4g.Info("Closing receive and exit channel")
 	close(s.recvChannel)
+	close(s.exitChannel)
 }
 
 func ReceiveResponse(socket *zmq.Socket) *Response {
@@ -87,29 +79,26 @@ func (s *ServerState) LoopPolling() {
 	for {
 		pollers := zmq.PollItems{
 			zmq.PollItem{Socket: s.receiveSocket, Events: zmq.POLLIN},
-			zmq.PollItem{Socket: s.monitorSocket, Events: zmq.POLLIN},
 			zmq.PollItem{Socket: s.responseSocket, Events: zmq.POLLIN},
 		}
 		_, err := zmq.Poll(pollers, -1)
 		if err != nil {
-			l4g.Warn("Error on polling ", err)
+			l4g.Info("Exiting loop polling")
 			return
 		}
 		if pollers[0].REvents&zmq.POLLIN > 0 {
 			parts, err := s.receiveSocket.RecvMultipart(0)
 			if err != nil {
 				l4g.Warn("Error on receive ", err)
+				continue
 			}
 			s.recvChannel <- parts
 		}
 		if pollers[1].REvents&zmq.POLLIN > 0 {
-			l4g.Info("Recv socket has been closed, exiting loop polling")
-			return
-		}
-		if pollers[2].REvents&zmq.POLLIN > 0 {
 			parts, err := s.responseSocket.RecvMultipart(0)
 			if err != nil {
 				l4g.Warn("Error on response receive ", err)
+				continue
 			}
 			err = s.receiveSocket.SendMultipart(parts, 0)
 			if err != nil {
@@ -121,23 +110,23 @@ func (s *ServerState) LoopPolling() {
 
 func ListenAndServe(config *Config, exitChannel chan bool) {
 	l4g.Info(fmt.Sprintf("Elevator started on %s", config.Endpoint))
-
-	serverState := &ServerState{Config: config, recvChannel: make(chan [][]byte, 100)}
+	serverState := &ServerState{Config: config, recvChannel: make(chan [][]byte, 100),
+		exitChannel:exitChannel}
 	err := serverState.initializeServer()
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	defer serverState.closeServer()
-
-	go serverState.LoopPolling()
-
-	worker := Worker{serverState.dbStore, nil,
-		serverState.Context, serverState.recvChannel, exitChannel}
+	workerExitChannel := make(chan bool, 0)
+	worker := Worker{serverState.dbStore, nil, serverState.Context,
+		serverState.recvChannel, workerExitChannel}
 	for i := 0; i < 5; i++ {
 		go worker.StartWorker()
 	}
-
+	go serverState.LoopPolling()
 	<-exitChannel
 	l4g.Info("Exiting server")
+	// Closing workers
+	close(workerExitChannel)
+	// Closing sockets and context
+	serverState.closeServer()
 }

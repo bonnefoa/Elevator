@@ -48,7 +48,7 @@ func (w *Worker) processRequest(parts [][]byte) {
 		w.sendErrorResponse(request.Id, err)
 		return
 	}
-	l4g.Debug(func() string { return request.String() })
+	l4g.Debug(request.String())
 	res, err := w.HandleRequest(request)
 	if err != nil {
 		w.sendErrorResponse(request.Id, err)
@@ -61,12 +61,14 @@ func (w *Worker) processRequest(parts [][]byte) {
 	w.sendResponse(response)
 }
 
-func (w *Worker) Close() {
+func (w *Worker) DestroyWorker() {
+	l4g.Info("Destroying worker")
 	w.Socket.Close()
 }
 
 func (w Worker) StartWorker() {
 	w.startResponseSocket()
+	defer w.DestroyWorker()
 	for {
 		select {
 		case parts := <-w.partsChannel:
@@ -75,6 +77,7 @@ func (w Worker) StartWorker() {
 			}
 			w.processRequest(parts)
 		case <-w.exitChannel:
+			l4g.Debug("Received exit signal, destroying worker")
 			return
 		}
 	}

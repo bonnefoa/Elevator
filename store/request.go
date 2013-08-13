@@ -22,10 +22,16 @@ type Request struct {
 	TypeCommand TypeCommand
 }
 
+var _ = fmt.Print
+
 // String represents the Request as a normalized string
-func (r *Request) String() string {
-	return fmt.Sprintf("<Request uid:%s command:%s args:%s>",
-		r.DbUid, r.Command, r.Args)
+func (r Request) String() string {
+	if len(r.Args) < 10 {
+		return fmt.Sprintf("<Request uid:%s command:%s args:%s>",
+			r.DbUid, r.Command, r.Args)
+	}
+	return fmt.Sprintf("<Request uid:%s command:%s args:%s...>",
+		r.DbUid, r.Command, r.Args[0:10])
 }
 
 func GetTypeRequest(command string) TypeCommand {
