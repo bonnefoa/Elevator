@@ -45,7 +45,7 @@ func fillNKeys(db *Db, n int) {
 		req[i+1] = fmt.Sprintf("key_%i", i)
 		req[i+2] = fmt.Sprintf("val_%i", i)
 	}
-	Batch(db, toBytes(req...))
+	Batch(db, ToBytes(req...))
 }
 
 func TemplateDbTest(t Tester, f func(*DbStore, *Db)) {
@@ -56,7 +56,7 @@ func TemplateDbTest(t Tester, f func(*DbStore, *Db)) {
 	if err != nil {
 		t.Fatalf("Error when creating test db %v", err)
 	}
-	res, err := DbConnect(db_store, toBytes(TestDb))
+	res, err := DbConnect(db_store, ToBytes(TestDb))
 	if err != nil {
 		t.Fatalf("Error on connection %v", err)
 	}

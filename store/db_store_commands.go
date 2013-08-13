@@ -50,7 +50,7 @@ func DbConnect(db_store *DbStore, args [][]byte) ([][]byte, error) {
 	if !exists {
 		return nil, NoSuchDbError(db_name)
 	}
-	return toBytes(db_uid), nil
+	return ToBytes(db_uid), nil
 }
 
 func DbList(db_store *DbStore, args [][]byte) ([][]byte, error) {

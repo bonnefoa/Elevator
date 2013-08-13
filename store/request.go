@@ -63,6 +63,8 @@ func PartsToRequest(parts [][]byte) (*Request, error) {
 	id := parts[0:2]
 	rawMsg := parts[2]
 	var msg *bytes.Buffer = bytes.NewBuffer(rawMsg)
+	// Deserialize request message and fulfill request
+	// obj with it's content
 	UnpackFrom(request, msg)
 	request.Id = id
 

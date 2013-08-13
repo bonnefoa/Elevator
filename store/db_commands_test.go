@@ -9,34 +9,34 @@ import (
 var testOperationDatas = []struct {
 	op             string
 	request        [][]byte
-	expectedStatus ResponseStatus
+	expectedError   error
 	data           [][]byte
 }{
-	{DB_GET, toBytes("key"), KEY_ERROR, nil},
+	{DB_GET, ToBytes("key"), KeyError("key"), nil},
 
-	{DB_PUT, toBytes("key", "val"), SUCCESS, nil},
-	{DB_PUT, toBytes("key2", "val2"), SUCCESS, nil},
-	{DB_PUT, toBytes("key3", "val3"), SUCCESS, nil},
+	{DB_PUT, ToBytes("key", "val"), nil, nil},
+	{DB_PUT, ToBytes("key2", "val2"), nil, nil},
+	{DB_PUT, ToBytes("key3", "val3"), nil, nil},
 
-	{DB_GET, toBytes("key"), SUCCESS, toBytes("val")},
-	{DB_MGET, toBytes("key", "key2"), SUCCESS,
-		toBytes("val", "val2")},
-	{DB_RANGE, toBytes("key", "key3"), SUCCESS,
-		toBytes("key", "val", "key2", "val2", "key3", "val3")},
+	{DB_GET, ToBytes("key"), nil, ToBytes("val")},
+	{DB_MGET, ToBytes("key", "key2"), nil,
+		ToBytes("val", "val2")},
+	{DB_RANGE, ToBytes("key", "key3"), nil,
+		ToBytes("key", "val", "key2", "val2", "key3", "val3")},
 
-	{DB_SLICE, toBytes("key", "2"), SUCCESS,
-		toBytes("key", "val", "key2", "val2")},
+	{DB_SLICE, ToBytes("key", "2"), nil,
+		ToBytes("key", "val", "key2", "val2")},
 
-	{DB_DELETE, toBytes("key"), SUCCESS, nil},
-	{DB_GET, toBytes("key"), KEY_ERROR, nil},
+	{DB_DELETE, ToBytes("key"), nil, nil},
+	{DB_GET, ToBytes("key"), KeyError("key"), nil},
 
-	{DB_BATCH, toBytes(SIGNAL_BATCH_PUT, "batch1", "val1",
-		SIGNAL_BATCH_PUT, "batch2", "val2"), SUCCESS, nil},
-	{DB_GET, toBytes("batch1"), SUCCESS, toBytes("val1")},
+	{DB_BATCH, ToBytes(SIGNAL_BATCH_PUT, "batch1", "val1",
+		SIGNAL_BATCH_PUT, "batch2", "val2"), nil, nil},
+	{DB_GET, ToBytes("batch1"), nil, ToBytes("val1")},
 
-	{DB_BATCH, toBytes(SIGNAL_BATCH_PUT, "batch3", "val3",
-		SIGNAL_BATCH_DELETE, "batch3"), SUCCESS, nil},
-	{DB_GET, toBytes("batch3"), KEY_ERROR, nil},
+	{DB_BATCH, ToBytes(SIGNAL_BATCH_PUT, "batch3", "val3",
+		SIGNAL_BATCH_DELETE, "batch3"), nil, nil},
+	{DB_GET, ToBytes("batch3"), KeyError("batch3"), nil},
 }
 
 func TestOperations(t *testing.T) {
@@ -44,10 +44,9 @@ func TestOperations(t *testing.T) {
 		for i, tt := range testOperationDatas {
 			command := databaseComands[tt.op]
 			res, err := command(db, tt.request)
-			status := ErrorToStatusCode(err)
-			if status != tt.expectedStatus {
+			if !reflect.DeepEqual(err, tt.expectedError) {
 				t.Fatalf("%d, expected status %v, got %v", i,
-				tt.expectedStatus, status)
+				tt.expectedError, err)
 			}
 			if !reflect.DeepEqual(res, tt.data) {
 				t.Fatalf("expected %v, got %v", tt.data, res)
@@ -61,7 +60,7 @@ func BenchmarkAtomicPut(b *testing.B) {
 	f := func(db_store *DbStore, db *Db) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			args := toBytes(fmt.Sprintf("key_%i", i), fmt.Sprintf("val_%i", i))
+			args := ToBytes(fmt.Sprintf("key_%i", i), fmt.Sprintf("val_%i", i))
 			Put(db, args)
 		}
 	}
@@ -81,7 +80,7 @@ func BenchmarkGet(b *testing.B) {
 		fillNKeys(db, b.N)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			args := toBytes(fmt.Sprintf("key_%i", i))
+			args := ToBytes(fmt.Sprintf("key_%i", i))
 			Get(db, args)
 		}
 	}
@@ -97,7 +96,7 @@ func BenchmarkBatchDelete(b *testing.B) {
 			args[i] = SIGNAL_BATCH_DELETE
 			args[i+1] = fmt.Sprintf("key_%i", i)
 		}
-		Batch(db, toBytes(args...))
+		Batch(db, ToBytes(args...))
 	}
 	TemplateDbTest(b, f)
 }
@@ -107,7 +106,7 @@ func BenchmarkDelete(b *testing.B) {
 		fillNKeys(db, b.N)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			args := toBytes(fmt.Sprintf("key_%i", i))
+			args := ToBytes(fmt.Sprintf("key_%i", i))
 			Delete(db, args)
 		}
 	}

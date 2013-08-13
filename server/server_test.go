@@ -1,120 +1,40 @@
 package server
 
 import (
-	"bytes"
 	"fmt"
 	zmq "github.com/alecthomas/gozmq"
 	"testing"
+	store "github.com/oleiade/Elevator/store"
+    "reflect"
 )
 
-//func getTestConf() *Config {
-	//logConfig := &LogConfiguration{
-		//LogFile:  "test/elevator.log",
-		//LogLevel: "INFO",
-	//}
-	//storePath, _ := ioutil.TempFile("/tmp", "elevator_store")
-	//storagePath, _ := ioutil.TempDir("/tmp", "elevator_path")
-
-	//core := &CoreConfig{
-		//Daemon:      false,
-		//Endpoint:    "tcp://127.0.0.1:4141",
-		//Pidfile:     "test/elevator.pid",
-		//StorePath:   storePath.Name(),
-		//StoragePath: storagePath,
-		//DefaultDb:   "default",
-	//}
-	//storage := NewStorageEngineConfig()
-	//options := storage.ToLeveldbOptions()
-	//config := &Config{
-		//core,
-		//storage,
-		//logConfig,
-		//options,
-	//}
-	//l4g.AddFilter("stdout", l4g.INFO, l4g.NewConsoleLogWriter())
-	//return config
-//}
-
-
-func TestPackUnpackRequest(t *testing.T) {
-	var buffer bytes.Buffer
-	var resultRequest Request
-
-	startRequest := Request{Command: DB_CONNECT, Args: []string{TestDb}}
-	PackInto(startRequest, &buffer)
-
-	UnpackFrom(&resultRequest, &buffer)
-	if resultRequest.Command != DB_CONNECT {
-		t.Fatalf("Expected request to be DB_CONNECT, got %q", resultRequest)
-	}
-	UnpackFrom(resultRequest, &buffer)
-	if resultRequest.Command != DB_CONNECT {
-		t.Fatalf("Expected request to be DB_CONNECT, got %q", resultRequest)
-	}
-
-	PackInto(&startRequest, &buffer)
-	UnpackFrom(&resultRequest, &buffer)
-	if resultRequest.Command != DB_CONNECT {
-		t.Fatalf("Expected request to be DB_CONNECT, got %q", resultRequest)
-	}
-	UnpackFrom(resultRequest, &buffer)
-	if resultRequest.Command != DB_CONNECT {
-		t.Fatalf("Expected request to be DB_CONNECT, got %q", resultRequest)
-	}
+type Tester interface {
+	Fatal(args ...interface{})
+	Fatalf(format string, args ...interface{})
 }
 
-func TestServer(t *testing.T) {
-	f := func(socket *zmq.Socket, uid string) {
-		req := Request{Command: DB_PUT, Args: []string{"key", "val"}, DbUid: uid}
-		req.SendRequest(socket)
-		response := ReceiveResponse(socket)
-		if response.Status != SUCCESS_STATUS {
-			t.Fatalf("Error on db put %q", response)
-		}
-
-		req = Request{Command: DB_GET, Args: []string{"key"}, DbUid: uid}
-		req.SendRequest(socket)
-		response = ReceiveResponse(socket)
-		if response.Status != SUCCESS_STATUS {
-			t.Fatalf("Error on db get %q", response)
-		}
-		if response.Data[0] != "val" {
-			t.Fatalf("Expected to fetch 'key' value 'val', got %q", response.Data[0])
-		}
-	}
-	TemplateServerTest(t, f)
+type Env struct {
+	*zmq.Context
+	client     *zmq.Socket
+	endpoint   string
+	Tester
 }
 
-func BenchmarkServerGet(b *testing.B) {
-	f := func(socket *zmq.Socket, uid string) {
-		args := make([]string, b.N*3)
-		b.Logf("b.N is %d", b.N)
-		for i := 0; i < b.N*3; i += 3 {
-			args[i] = SIGNAL_BATCH_PUT
-			args[i+1] = fmt.Sprintf("key_%d", i)
-			args[i+2] = fmt.Sprintf("val_%d", i)
-		}
-		req := Request{Command: DB_BATCH, Args: args, DbUid: uid}
-		req.SendRequest(socket)
-		response := ReceiveResponse(socket)
-		if response.Status != SUCCESS_STATUS {
-			b.Fatalf("Error on db batch %q", response)
-		}
-		b.Logf("Finished writing")
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			req = Request{Command: DB_GET,
-				Args: []string{fmt.Sprintf("key_%d", i)}, DbUid: uid}
-			req.SendRequest(socket)
-			response = ReceiveResponse(socket)
-		}
-		b.StopTimer()
-		b.Logf("Finished %d queries", b.N)
-	}
-	TemplateServerTest(b, f)
-}
+func (env *Env) setupEnv() {
+    var err error
+    env.Context, err = zmq.NewContext()
+    if err != nil {
+        env.Fatalf("Error on context creation", err)
+    }
+	socket, err := env.NewSocket(zmq.REQ)
+    if err != nil {
+        env.Fatalf("Error on socket creation", err)
+    }
+    err = socket.Connect(env.endpoint)
+    if err != nil {
+        env.Fatalf("Error on socket connect", err)
+    }
 
-func TemplateServerTest(t Tester, f func(*zmq.Socket, string)) {
 	c := getTestConf()
 	defer cleanConfTemp(c)
 	exitSignal := make(chan bool)
@@ -124,9 +44,6 @@ func TemplateServerTest(t Tester, f func(*zmq.Socket, string)) {
 		<-exitSignal
 	}()
 
-	context, _ := zmq.NewContext()
-	socket, _ := context.NewSocket(zmq.REQ)
-	socket.Connect(c.Endpoint)
 
 	req := Request{Command: DB_CREATE, Args: []string{TestDb}}
 	req.SendRequest(socket)
@@ -143,5 +60,88 @@ func TemplateServerTest(t Tester, f func(*zmq.Socket, string)) {
 	}
 
 	uid := response.Data[0]
-	f(socket, uid)
+}
+
+func getTestConf() *Config {
+    logConfig := &LogConfiguration{
+        LogFile:  "test/elevator.log",
+        LogLevel: "INFO",
+    }
+    storePath, _ := ioutil.TempFile("/tmp", "elevator_store")
+    storagePath, _ := ioutil.TempDir("/tmp", "elevator_path")
+
+    core := &CoreConfig{
+        Daemon:      false,
+        Endpoint:    "tcp://127.0.0.1:4141",
+        Pidfile:     "test/elevator.pid",
+        StorePath:   storePath.Name(),
+        StoragePath: storagePath,
+        DefaultDb:   "default",
+    }
+    storage := NewStorageEngineConfig()
+    options := storage.ToLeveldbOptions()
+    config := &Config{
+        core,
+        storage,
+        logConfig,
+        options,
+    }
+    l4g.AddFilter("stdout", l4g.INFO, l4g.NewConsoleLogWriter())
+    return config
+}
+
+
+func TestServer(t *testing.T) {
+	f := func(socket *zmq.Socket, uid string) {
+		req := store.Request{Command: store.DB_PUT,
+            Args: store.ToBytes("key", "val"), DbUid: uid}
+		req.SendRequest(socket)
+		response := ReceiveResponse(socket)
+		if response.Status != SUCCESS {
+			t.Fatalf("Error on db put %q", response)
+		}
+
+		req = store.Request{Command: store.DB_GET,
+            Args: store.ToBytes("key"), DbUid: uid}
+		req.SendRequest(socket)
+		response = ReceiveResponse(socket)
+		if response.Status != SUCCESS {
+			t.Fatalf("Error on db get %q", response)
+		}
+        if !reflect.DeepEqual(response.Data, []byte("val")) {
+			t.Fatalf("Expected to fetch 'key' value 'val', got %q",
+                response.Data[0])
+		}
+	}
+	TemplateServerTest(t, f)
+}
+
+func BenchmarkServerGet(b *testing.B) {
+	f := func(socket *zmq.Socket, uid string) {
+		args := make([]string, b.N*3)
+		b.Logf("b.N is %d", b.N)
+		for i := 0; i < b.N*3; i += 3 {
+			args[i] = store.SIGNAL_BATCH_PUT
+			args[i+1] = fmt.Sprintf("key_%d", i)
+			args[i+2] = fmt.Sprintf("val_%d", i)
+		}
+		req := store.Request{Command: store.DB_BATCH,
+            Args: store.ToBytes(args...), DbUid: uid}
+		req.SendRequest(socket)
+		response := ReceiveResponse(socket)
+		if response.Status != SUCCESS {
+			b.Fatalf("Error on db batch %q", response)
+		}
+		b.Logf("Finished writing")
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			req = store.Request{Command: store.DB_GET,
+				Args: store.ToBytes(fmt.Sprintf("key_%d", i)), DbUid: uid}
+			req.SendRequest(socket)
+			response = ReceiveResponse(socket)
+		}
+		b.StopTimer()
+		b.Logf("Finished %d queries", b.N)
+	}
+	TemplateServerTest(b, f)
 }

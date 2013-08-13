@@ -11,7 +11,7 @@ import (
 	"syscall"
 )
 
-func toBytes(args...string) [][]byte {
+func ToBytes(args...string) [][]byte {
 	res := make([][]byte, len(args))
 	for i, v := range args {
 		res[i] = []byte(v)

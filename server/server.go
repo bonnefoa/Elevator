@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-var eint_error = "interrupted system call"
-
 // Creates and binds the zmq socket for the server
 // to listen on
 func buildServerSocket(endpoint string) (*zmq.Socket, *zmq.Context, error) {
@@ -44,68 +42,6 @@ func ReceiveResponse(socket *zmq.Socket) *Response {
 	return response
 }
 
-func sendResponse(socket *zmq.Socket, response *Response) {
-	var response_buf bytes.Buffer
-	store.PackInto(response, &response_buf)
-}
-
-func sendErrorResponse(socket *zmq.Socket, id [][]byte, err error) {
-	response := ResponseFromError(id, err)
-	sendResponse(socket, response)
-}
-
-// handleRequest deserializes the input msgpack request,
-// processes it and ensures it is forwarded to the client.
-func handleRequest(dbStore *store.DbStore) {
-	// Deserialize request message and fulfill request
-	// obj with it's content
-	for {
-		request, err := store.PartsToRequest(parts)
-		if err != nil {
-			l4g.Info("Error on message reading %s", err)
-			sendErrorResponse(request.Id, err)
-			return
-		}
-		l4g.Debug(func() string { return request.String() })
-		res, err := dbStore.HandleRequest(request)
-		if err != nil {
-			sendErrorResponse(request.Id, err)
-		}
-		response := &Response {
-			Status:SUCCESS,
-			Data:res,
-			Id:request.Id,
-		}
-		sendResponse(response)
-	}
-}
-
-// forwardResponse takes a request-response pair as input and
-// sends the response to the request client.
-func forwardResponse(response *Response, request *Request) error {
-	l4g.Debug(func() string { return response.String() })
-
-	var err error
-	var response_buf bytes.Buffer
-	var socket *zmq.Socket = &request.source.Socket
-
-
-	parts := request.source.Id
-	parts = append(parts, response_buf.Bytes())
-	for {
-		err = socket.SendMultipart(parts, 0)
-		if err == nil {
-			break
-		}
-		if err.Error() == eint_error {
-			continue
-		}
-		l4g.Warn("Error when sending response %v", err)
-		return err
-	}
-	return nil
-}
-
 func PollChannel(socket *zmq.Socket, pollChan chan [][]byte, exitSignal chan bool) {
 	// Poll for events on the zmq socket
 	// and send incoming requests in the poll channel
@@ -115,9 +51,6 @@ func PollChannel(socket *zmq.Socket, pollChan chan [][]byte, exitSignal chan boo
 			zmq.PollItem{Socket: socket, Events: zmq.POLLIN},
 		}
 		_, err := zmq.Poll(pollers, time.Second)
-		if err != nil && err.Error() == eint_error {
-			continue
-		}
 		if err != nil {
 			select {
 			case <-exitSignal:
@@ -143,7 +76,7 @@ func ListenAndServe(config *Config, exitSignal chan bool) {
 		log.Fatal(err)
 	}
 	// Load database store
-	dbStore := NewDbStore(config)
+    dbStore := store.NewDbStore(config.StoreConfig)
 	err = dbStore.Load()
 	if err != nil {
 		err = dbStore.Add("default")
@@ -163,13 +96,13 @@ func ListenAndServe(config *Config, exitSignal chan bool) {
 
 	go PollChannel(socket, pollChan, exitSignal)
 
+    worker := Worker { dbStore, nil, context, pollChan, exitSignal }
+    for i:=0; i < 10; i++ {
+        worker.StartWorker()
+    }
+
 	for {
 		select {
-		case parts := <-pollChan:
-			if len(parts) < 3 {
-				continue
-			}
-			go handleRequest(&parts, dbStore)
 		case <-exitSignal:
 			l4g.Info("Exiting server")
 			return
