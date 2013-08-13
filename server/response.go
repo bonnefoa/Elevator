@@ -6,10 +6,10 @@ import (
 )
 
 type Response struct {
-	Status   ResponseStatus
-	ErrMsg   string
-	Data     [][]byte
-	Id	 [][]byte
+	Status ResponseStatus
+	ErrMsg string
+	Data   [][]byte
+	Id     [][]byte
 }
 
 // String represents the Response as a normalized string
@@ -23,13 +23,12 @@ func (r *Response) String() string {
 
 func ResponseFromError(id [][]byte, err error) *Response {
 	status := ErrorToStatusCode(err)
-	return &Response {
+	return &Response{
 		Status: status,
 		ErrMsg: err.Error(),
-		Id:id,
+		Id:     id,
 	}
 }
-
 
 type ResponseStatus int
 
@@ -45,7 +44,7 @@ const (
 	SIGNAL_ERROR   = ResponseStatus(8)
 	REQUEST_ERROR  = ResponseStatus(9)
 	UNKNOWN_ERROR  = ResponseStatus(10)
-	UNKOWN_COMMAND  = ResponseStatus(11)
+	UNKOWN_COMMAND = ResponseStatus(11)
 )
 
 func ErrorToStatusCode(err error) ResponseStatus {

@@ -2,6 +2,7 @@ package store
 
 import (
 	leveldb "github.com/jmhodges/levigo"
+	"os"
 )
 
 type StoreConfig struct {
@@ -63,4 +64,9 @@ func (opts StorageEngineConfig) ToLeveldbOptions() *leveldb.Options {
 	options.SetParanoidChecks(opts.VerifyChecksums)
 	options.SetWriteBufferSize(opts.WriteBufferSize)
 	return options
+}
+
+func (c *StoreConfig) CleanConfiguration() {
+	os.RemoveAll(c.StoragePath)
+	os.RemoveAll(c.StorePath)
 }

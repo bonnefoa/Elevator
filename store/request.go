@@ -53,13 +53,13 @@ func RequestFromByte(req []byte) (*Request, error) {
 }
 
 func (request *Request) SendRequest(socket *zmq.Socket) {
-	var buffer bytes.Buffer
+	buffer := bytes.Buffer{}
 	PackInto(request, &buffer)
 	socket.SendMultipart([][]byte{buffer.Bytes()}, 0)
 }
 
 func PartsToRequest(parts [][]byte) (*Request, error) {
-	var request *Request
+	request := &Request{}
 	id := parts[0:2]
 	rawMsg := parts[2]
 	var msg *bytes.Buffer = bytes.NewBuffer(rawMsg)

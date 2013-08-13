@@ -25,6 +25,15 @@ func NewDbStore(config *StoreConfig) *DbStore {
 	}
 }
 
+func InitializeDbStore(storeConfig *StoreConfig) (*DbStore, error) {
+	dbStore := NewDbStore(storeConfig)
+	err := dbStore.Load()
+	if err != nil {
+		err = dbStore.Add(storeConfig.DefaultDb)
+	}
+	return dbStore, err
+}
+
 func (store *DbStore) updateNameToUidIndex() {
 	for _, db := range store.Container {
 		if _, present := store.NameToUid[db.Name]; present == false {
@@ -35,7 +44,7 @@ func (store *DbStore) updateNameToUidIndex() {
 
 // ReadFromFile syncs the content of the store
 // description file to the DbStore
-func (store *DbStore) ReadFromFile() (err error) {
+func (store *DbStore) Load() (err error) {
 	data, err := ioutil.ReadFile(store.StorePath)
 	if err != nil {
 		return err
@@ -63,20 +72,7 @@ func (store *DbStore) WriteToFile() (err error) {
 		return err
 	}
 	err = ioutil.WriteFile(store.StorePath, data, 0777)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// Load updates the DbStore with databases
-// described by store file
-func (store *DbStore) Load() (err error) {
-	err = store.ReadFromFile()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // Mount sets the database status to DB_STATUS_MOUNTED

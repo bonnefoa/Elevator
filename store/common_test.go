@@ -2,9 +2,7 @@ package store
 
 import (
 	"fmt"
-	l4g "github.com/alecthomas/log4go"
 	"io/ioutil"
-	"os"
 )
 
 const TestDb = "test_db"
@@ -15,27 +13,12 @@ type Tester interface {
 }
 
 func getTestConf() *StoreConfig {
+	storeConfig := NewStoreConfig()
 	storePath, _ := ioutil.TempFile("/tmp", "elevator_store")
 	storagePath, _ := ioutil.TempDir("/tmp", "elevator_path")
-
-	core := &CoreConfig{
-		StorePath:   storePath.Name(),
-		StoragePath: storagePath,
-		DefaultDb:   "default",
-	}
-	storage := NewStorageEngineConfig()
-	options := storage.ToLeveldbOptions()
-	config := &StoreConfig{
-		core,
-		options,
-	}
-	l4g.AddFilter("stdout", l4g.INFO, l4g.NewConsoleLogWriter())
-	return config
-}
-
-func cleanConfTemp(c *StoreConfig) {
-	os.RemoveAll(c.StoragePath)
-	os.RemoveAll(c.StorePath)
+	storeConfig.CoreConfig.StorePath = storePath.Name()
+	storeConfig.CoreConfig.StoragePath = storagePath
+	return storeConfig
 }
 
 func fillNKeys(db *Db, n int) {
@@ -50,7 +33,7 @@ func fillNKeys(db *Db, n int) {
 
 func TemplateDbTest(t Tester, f func(*DbStore, *Db)) {
 	c := getTestConf()
-	defer cleanConfTemp(c)
+	defer c.CleanConfiguration()
 	db_store := NewDbStore(c)
 	err := db_store.Add(TestDb)
 	if err != nil {
@@ -75,4 +58,3 @@ func TemplateDbTest(t Tester, f func(*DbStore, *Db)) {
 	}
 	f(db_store, db)
 }
-
