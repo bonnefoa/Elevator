@@ -40,92 +40,89 @@ var testOperationDatas = []struct {
 }
 
 func TestOperations(t *testing.T) {
-	f := func(db_store *DbStore, db *Db) {
-		for i, tt := range testOperationDatas {
-			command := databaseComands[tt.op]
-			res, err := command(db, tt.request)
-			if !reflect.DeepEqual(err, tt.expectedError) {
-				t.Fatalf("%d, expected status %v, got %v", i,
-				tt.expectedError, err)
-			}
-			if !reflect.DeepEqual(res, tt.data) {
-				t.Fatalf("expected %v, got %v", tt.data, res)
-			}
-		}
-	}
-	TemplateDbTest(t, f)
+    env := setupEnv(t)
+    defer env.destroy()
+    for i, tt := range testOperationDatas {
+        command := databaseComands[tt.op]
+        res, err := command(env.Db, tt.request)
+        if !reflect.DeepEqual(err, tt.expectedError) {
+            t.Fatalf("%d, expected status %v, got %v", i,
+            tt.expectedError, err)
+        }
+        if !reflect.DeepEqual(res, tt.data) {
+            t.Fatalf("expected %v, got %v", tt.data, res)
+        }
+    }
 }
 
 func BenchmarkAtomicPut(b *testing.B) {
-	f := func(db_store *DbStore, db *Db) {
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			args := ToBytes(fmt.Sprintf("key_%i", i), fmt.Sprintf("val_%i", i))
-			Put(db, args)
-		}
-	}
-	TemplateDbTest(b, f)
+    env := setupEnv(b)
+    defer env.destroy()
+    b.ResetTimer()
+    for i := 0; i < b.N; i++ {
+        args := ToBytes(fmt.Sprintf("key_%i", i), fmt.Sprintf("val_%i", i))
+        Put(env.Db, args)
+    }
 }
 
 func BenchmarkBatchPut(b *testing.B) {
-	f := func(db_store *DbStore, db *Db) {
-		b.ResetTimer()
-		fillNKeys(db, b.N)
-	}
-	TemplateDbTest(b, f)
+    env := setupEnv(b)
+    defer env.destroy()
+
+    b.ResetTimer()
+    fillNKeys(env.Db, b.N)
 }
 
 func BenchmarkGet(b *testing.B) {
-	f := func(db_store *DbStore, db *Db) {
-		fillNKeys(db, b.N)
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			args := ToBytes(fmt.Sprintf("key_%i", i))
-			Get(db, args)
-		}
-	}
-	TemplateDbTest(b, f)
+    env := setupEnv(b)
+    defer env.destroy()
+
+    fillNKeys(env.Db, b.N)
+    b.ResetTimer()
+    for i := 0; i < b.N; i++ {
+        args := ToBytes(fmt.Sprintf("key_%i", i))
+        Get(env.Db, args)
+    }
 }
 
 func BenchmarkBatchDelete(b *testing.B) {
-	f := func(db_store *DbStore, db *Db) {
-		fillNKeys(db, b.N)
-		b.ResetTimer()
-		args := make([]string, b.N*2)
-		for i := 0; i < b.N*2; i += 2 {
-			args[i] = SIGNAL_BATCH_DELETE
-			args[i+1] = fmt.Sprintf("key_%i", i)
-		}
-		Batch(db, ToBytes(args...))
-	}
-	TemplateDbTest(b, f)
+    env := setupEnv(b)
+    defer env.destroy()
+
+    fillNKeys(env.Db, b.N)
+    b.ResetTimer()
+    args := make([]string, b.N*2)
+    for i := 0; i < b.N*2; i += 2 {
+        args[i] = SIGNAL_BATCH_DELETE
+        args[i+1] = fmt.Sprintf("key_%i", i)
+    }
+    Batch(env.Db, ToBytes(args...))
 }
 
 func BenchmarkDelete(b *testing.B) {
-	f := func(db_store *DbStore, db *Db) {
-		fillNKeys(db, b.N)
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			args := ToBytes(fmt.Sprintf("key_%i", i))
-			Delete(db, args)
-		}
-	}
-	TemplateDbTest(b, f)
+    env := setupEnv(b)
+    defer env.destroy()
+
+    fillNKeys(env.Db, b.N)
+    b.ResetTimer()
+    for i := 0; i < b.N; i++ {
+        args := ToBytes(fmt.Sprintf("key_%i", i))
+        Delete(env.Db, args)
+    }
 }
 
 func templateMGet(b *testing.B, numKeys int, fun func(*Db, [][]byte) ([][]byte, error)) {
-	f := func(db_store *DbStore, db *Db) {
-		fillNKeys(db, b.N)
-		get := make([][]byte, numKeys)
-		for i := 0; i < numKeys; i++ {
-			get[i] = []byte(fmt.Sprintf("key_%i", i))
-		}
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			fun(db, get)
-		}
-	}
-	TemplateDbTest(b, f)
+    env := setupEnv(b)
+    defer env.destroy()
+    fillNKeys(env.Db, b.N)
+    get := make([][]byte, numKeys)
+    for i := 0; i < numKeys; i++ {
+        get[i] = []byte(fmt.Sprintf("key_%i", i))
+    }
+    b.ResetTimer()
+    for i := 0; i < b.N; i++ {
+        fun(env.Db, get)
+    }
 }
 
 func Benchmark10MGet(b *testing.B) {

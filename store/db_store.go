@@ -240,7 +240,7 @@ func (dbStore *DbStore) HandleRequest(request *Request) ([][]byte, error) {
 			}
 		}
 		db.requestChan <- request
-		result := <-db.responseChan
+        result := <-db.responseChan
 		return result.Data, result.Err
 	}
 	return nil, UnknownCommand(request.Command)
