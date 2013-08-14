@@ -20,7 +20,7 @@ func TestConfigFromCommandLine(t *testing.T) {
 		"GA",
 		"Specifies config file path")
 	config := NewConfig()
-	SetFlag(fs, config.CoreConfig)
+	SetFlag(fs, config.ServerConfig)
 
 	err := fs.Parse([]string{"-c", "toto", "-d"})
 	t.Log(fs.Args())
