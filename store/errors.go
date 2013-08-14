@@ -14,21 +14,21 @@ type EmptyCommand string
 type RequestError error
 
 func (k KeyError) Error() string {
-	return fmt.Sprintf("Key %s does not exists", k)
+	return fmt.Sprintf("Key %q does not exists", []byte(k))
 }
 
 func (k NoSuchDbError) Error() string {
-	return fmt.Sprintf("No such db %s", k)
+	return fmt.Sprintf("No such db %q", string(k))
 }
 
 func (k NoSuchDbuidError) Error() string {
-	return fmt.Sprintf("No such db uid %s", k)
+	return fmt.Sprintf("No such db uid %q", string(k))
 }
 
 func (c EmptyCommand) Error() string {
-	return fmt.Sprintf("Empty command in request %s", c)
+	return fmt.Sprintf("Empty command in request %q", string(c))
 }
 
 func (c UnknownCommand) Error() string {
-	return fmt.Sprintf("Unkown command %s", c)
+	return fmt.Sprintf("Unkown command %q", string(c))
 }
