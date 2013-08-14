@@ -2,7 +2,7 @@ package server
 
 import (
 	"fmt"
-	zmq "github.com/alecthomas/gozmq"
+	zmq "github.com/bonnefoa/go-zeromq"
 	store "github.com/oleiade/Elevator/store"
 	"io/ioutil"
 	"os"
@@ -40,7 +40,7 @@ func getTestConf() *Config {
 	config := NewConfig()
 	logConfig := &LogConfiguration{
 		LogFile:  path.Join(tempDir, "elevator.log"),
-		LogLevel: "INFO",
+		LogLevel: "DEBUG",
 	}
 	ConfigureLogger(logConfig)
 
@@ -54,7 +54,8 @@ func getTestConf() *Config {
 	return config
 }
 
-func (env *Env) setupEnv() {
+func setupEnv(t Tester) *Env {
+	env := &Env{Tester: t}
 	var err error
 	env.Context, err = zmq.NewContext()
 	if err != nil {
@@ -85,17 +86,17 @@ func (env *Env) setupEnv() {
 		env.Fatalf("Error on db connection %q", response)
 	}
 	env.uid = string(response.Data[0])
+	return env
 }
 
 func (env *Env) destroy() {
-	env.exitChannel<- true
+	env.exitChannel <- true
 	<-env.exitChannel
 	env.CleanConfiguration()
 }
 
 func TestServer(t *testing.T) {
-	env := Env{Tester: t}
-	env.setupEnv()
+	env := setupEnv(t)
 	defer env.destroy()
 	req := store.Request{Command: store.DB_PUT, Args: store.ToBytes("key", "val"), DbUid: env.uid}
 	req.SendRequest(env.Socket)
@@ -104,7 +105,7 @@ func TestServer(t *testing.T) {
 		t.Fatalf("Error on db put %q", response)
 	}
 	req = store.Request{Command: store.DB_GET,
-	Args: store.ToBytes("key"), DbUid: env.uid}
+		Args: store.ToBytes("key"), DbUid: env.uid}
 	req.SendRequest(env.Socket)
 	response = ReceiveResponse(env.Socket)
 	if response.Status != SUCCESS {
@@ -114,34 +115,42 @@ func TestServer(t *testing.T) {
 	if !reflect.DeepEqual(response.Data, expectedValue) {
 		t.Fatalf("Expected to fetch 'key' value %q, got %q", expectedValue, response.Data[0])
 	}
+
+	req = store.Request{Command: store.DB_GET, Args: store.ToBytes("key_2"), DbUid: env.uid}
+	req.SendRequest(env.Socket)
+	response = ReceiveResponse(env.Socket)
+	if response.Status != KEY_ERROR {
+		t.Fatalf("Expected key error, got %q", response.Status)
+	}
 }
 
-func BenchmarkServerGet(b *testing.B) {
-	env := Env{Tester: b}
-	env.setupEnv()
-	defer env.destroy()
-
-	args := make([]string, b.N*3)
-	b.Logf("b.N is %d", b.N)
-	for i := 0; i < b.N*3; i += 3 {
+func getMPut(n int) [][]byte {
+	args := make([]string, n*3)
+	for i := 0; i < n*3; i += 3 {
 		args[i] = store.SIGNAL_BATCH_PUT
 		args[i+1] = fmt.Sprintf("key_%d", i)
 		args[i+2] = fmt.Sprintf("val_%d", i)
 	}
-	req := store.Request{Command: store.DB_BATCH, Args: store.ToBytes(args...), DbUid: env.uid}
+	return store.ToBytes(args...)
+}
+
+func BenchmarkServerGet(b *testing.B) {
+	env := setupEnv(b)
+	defer env.destroy()
+
+	args := getMPut(b.N)
+	req := store.Request{Command: store.DB_BATCH, Args: args, DbUid: env.uid}
 	req.SendRequest(env.Socket)
 	response := ReceiveResponse(env.Socket)
 	if response.Status != SUCCESS {
 		b.Fatalf("Error on db batch %q", response)
 	}
-	b.Logf("Finished writing")
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		req = store.Request{Command: store.DB_GET,
+		request := store.Request{Command: store.DB_GET,
 			Args: store.ToBytes(fmt.Sprintf("key_%d", i)), DbUid: env.uid}
-		req.SendRequest(env.Socket)
+		request.SendRequest(env.Socket)
 		response = ReceiveResponse(env.Socket)
 	}
 	b.StopTimer()
-	b.Logf("Finished %d queries", b.N)
 }
