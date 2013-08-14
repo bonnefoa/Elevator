@@ -40,12 +40,14 @@ func BatchOperationsFromRequestArgs(args [][]byte) (BatchOperations, error) {
 			}
 			op = PutOperation{args[i+1], args[i+2]}
 			i += 2
-		} else {
+		} else if string(args[i]) == SIGNAL_BATCH_DELETE {
 			if len(args) < i + 1 {
 				return ops, fmt.Errorf("Not enough arguments after %q", args[i:])
 			}
 			op = DeleteOperation{args[i+1]}
 			i += 1
+		} else {
+			return ops, fmt.Errorf("Unknown operator at %d (%s)", i, args[i])
 		}
 		ops = append(ops, op)
 	}

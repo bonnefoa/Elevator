@@ -28,8 +28,8 @@ func NewDb(db_name string, path string) *Db {
 		Path:         path,
 		Uid:          uuid.New(),
 		status:       DB_STATUS_UNMOUNTED,
-		requestChan:  make(chan *Request),
-		responseChan: make(chan *DbResult),
+		requestChan:  nil,
+		responseChan: nil,
 	}
 }
 
@@ -95,12 +95,12 @@ func (db *Db) Unmount() (err error) {
 		close(db.responseChan)
 		db.status = DB_STATUS_UNMOUNTED
 	} else {
-		error := fmt.Errorf("Database %s already unmounted", db.Name)
+        error := fmt.Errorf("Db: Database %s already unmounted", db.Name)
 		l4g.Error(error)
 		return error
 	}
 	l4g.Debug(func() string {
-		return fmt.Sprintf("Database %s unmounted", db.Name)
+        return fmt.Sprintf("Db: Database %s unmounted", db.Name)
 	})
 	return nil
 }

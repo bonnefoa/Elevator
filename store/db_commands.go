@@ -112,12 +112,15 @@ func Slice(db *Db, args [][]byte) ([][]byte, error) {
 
 func Batch(db *Db, args [][]byte) ([][]byte, error) {
 	var batch *leveldb.WriteBatch = leveldb.NewWriteBatch()
-	operations, _ := BatchOperationsFromRequestArgs(args)
+	operations, err := BatchOperationsFromRequestArgs(args)
+	if err != nil {
+		return nil, err
+	}
 	for _, operation := range operations {
 		operation.ExecuteBatch(batch)
 	}
 	wo := leveldb.NewWriteOptions()
-	err := db.connector.Write(wo, batch)
+	err = db.connector.Write(wo, batch)
 	if err != nil {
 		return nil, ValueError(err)
 	}
