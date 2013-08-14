@@ -2,8 +2,8 @@ package server
 
 import (
 	"bytes"
-	zmq "github.com/alecthomas/gozmq"
 	l4g "github.com/alecthomas/log4go"
+	zmq "github.com/bonnefoa/go-zeromq"
 	store "github.com/oleiade/Elevator/store"
 )
 
@@ -44,12 +44,11 @@ func (w *Worker) startResponseSocket() error {
 func (w *Worker) processRequest(parts [][]byte) {
 	request, err := store.PartsToRequest(parts)
 	if err != nil {
-		l4g.Info("Error on message reading %s", err)
+		l4g.Info("Worker: Error on message reading %s", err)
 		w.sendErrorResponse(request.Id, err)
 		return
 	}
-	l4g.Debug(request.String())
-	res, err := w.HandleRequest(request)
+	res, err := w.DbStore.HandleRequest(request)
 	if err != nil {
 		w.sendErrorResponse(request.Id, err)
 	}
@@ -62,7 +61,6 @@ func (w *Worker) processRequest(parts [][]byte) {
 }
 
 func (w *Worker) DestroyWorker() {
-	l4g.Info("Destroying worker")
 	w.Socket.Close()
 }
 

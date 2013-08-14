@@ -3,7 +3,7 @@ package store
 import (
 	"bytes"
 	"fmt"
-	zmq "github.com/alecthomas/gozmq"
+	zmq "github.com/bonnefoa/go-zeromq"
 )
 
 type TypeCommand int
@@ -21,8 +21,6 @@ type Request struct {
 	Id      [][]byte
 	TypeCommand TypeCommand
 }
-
-var _ = fmt.Print
 
 // String represents the Request as a normalized string
 func (r Request) String() string {

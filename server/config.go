@@ -11,9 +11,9 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Daemon      bool   `ini:"daemonize" short:"d" description:"Launches elevator as a daemon"`
-	Endpoint    string `ini:"endpoint" short:"e" description:"Endpoint to bind elevator to"`
-	Pidfile     string `ini:"pidfile"`
+	Daemon   bool   `ini:"daemonize" short:"d" description:"Launches elevator as a daemon"`
+	Endpoint string `ini:"endpoint" short:"e" description:"Endpoint to bind elevator to"`
+	Pidfile  string `ini:"pidfile"`
 }
 
 type LogConfiguration struct {
@@ -25,14 +25,14 @@ func NewConfig() *Config {
 	storeConfig := store.NewStoreConfig()
 	serverConfig := NewServerConfig()
 	logConfiguration := NewLogConfiguration()
-	return &Config{ serverConfig, storeConfig, logConfiguration }
+	return &Config{serverConfig, storeConfig, logConfiguration}
 }
 
 func NewServerConfig() *ServerConfig {
 	c := &ServerConfig{
-		Daemon:      false,
-		Endpoint:    DEFAULT_ENDPOINT,
-		Pidfile:     "/var/run/elevator.pid",
+		Daemon:   false,
+		Endpoint: DEFAULT_ENDPOINT,
+		Pidfile:  "/var/run/elevator.pid",
 	}
 	return c
 }

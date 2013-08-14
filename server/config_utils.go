@@ -1,9 +1,9 @@
 package server
 
 import (
-	"reflect"
-	goconfig "github.com/msbranco/goconfig"
 	"flag"
+	goconfig "github.com/msbranco/goconfig"
+	"reflect"
 )
 
 func LoadConfigFromFile(path string, obj interface{}, section string) error {
@@ -46,7 +46,9 @@ func SetFlag(fs *flag.FlagSet, obj interface{}) error {
 		struct_field := config.Field(i)
 		short_flag := config_type.Field(i).Tag.Get("short")
 		description := config_type.Field(i).Tag.Get("description")
-		if short_flag == "" { continue }
+		if short_flag == "" {
+			continue
+		}
 		switch {
 		case struct_field.Type().Kind() == reflect.Bool:
 			v := struct_field.Addr().Interface().(*bool)

@@ -3,8 +3,8 @@ package server
 import (
 	"bytes"
 	"fmt"
-	zmq "github.com/alecthomas/gozmq"
 	l4g "github.com/alecthomas/log4go"
+	zmq "github.com/bonnefoa/go-zeromq"
 	store "github.com/oleiade/Elevator/store"
 	"log"
 )
@@ -50,15 +50,15 @@ func (s *ServerState) initializeServer() (err error) {
 }
 
 func (s *ServerState) closeServer() {
-	l4g.Info("Unmounting databases")
+	l4g.Debug("Unmounting databases")
 	s.dbStore.UnmountAll()
-	l4g.Info("Closing receive socket")
+	l4g.Debug("Closing receive socket")
 	s.receiveSocket.Close()
-	l4g.Info("Closing response socket")
+	l4g.Debug("Closing response socket")
 	s.responseSocket.Close()
-	l4g.Info("Closing context")
-	s.Context.Close()
-	l4g.Info("Closing receive and exit channel")
+	l4g.Debug("Closing context")
+	s.Context.Destroy()
+	l4g.Debug("Closing receive and exit channel")
 	close(s.recvChannel)
 	close(s.exitChannel)
 }
@@ -69,19 +69,20 @@ func ReceiveResponse(socket *zmq.Socket) *Response {
 	if err != nil {
 		l4g.Warn("Error on response receive ", err)
 	}
-	store.UnpackFrom(response, bytes.NewBuffer(parts[0]))
+	store.UnpackFrom(response, bytes.NewBuffer(parts.Data[0]))
+	parts.Close()
 	return response
 }
 
 func (s *ServerState) LoopPolling() {
 	// Poll for events on the zmq socket
 	// and send incoming requests in the recv channel
+	pollers := zmq.PollItems{
+		&zmq.PollItem{Socket: s.receiveSocket, Events: zmq.POLLIN},
+		&zmq.PollItem{Socket: s.responseSocket, Events: zmq.POLLIN},
+	}
 	for {
-		pollers := zmq.PollItems{
-			zmq.PollItem{Socket: s.receiveSocket, Events: zmq.POLLIN},
-			zmq.PollItem{Socket: s.responseSocket, Events: zmq.POLLIN},
-		}
-		_, err := zmq.Poll(pollers, -1)
+		_, err := pollers.Poll(-1)
 		if err != nil {
 			l4g.Info("Exiting loop polling")
 			return
@@ -92,15 +93,18 @@ func (s *ServerState) LoopPolling() {
 				l4g.Warn("Error on receive ", err)
 				continue
 			}
-			s.recvChannel <- parts
+			s.recvChannel <- parts.Data
+			parts.Close()
 		}
 		if pollers[1].REvents&zmq.POLLIN > 0 {
 			parts, err := s.responseSocket.RecvMultipart(0)
+			l4g.Debug("Sending response")
 			if err != nil {
 				l4g.Warn("Error on response receive ", err)
 				continue
 			}
-			err = s.receiveSocket.SendMultipart(parts, 0)
+			err = s.receiveSocket.SendMultipart(parts.Data, 0)
+			parts.Close()
 			if err != nil {
 				l4g.Warn("Error on response send ", err)
 			}
@@ -111,7 +115,7 @@ func (s *ServerState) LoopPolling() {
 func ListenAndServe(config *Config, exitChannel chan bool) {
 	l4g.Info(fmt.Sprintf("Elevator started on %s", config.Endpoint))
 	serverState := &ServerState{Config: config, recvChannel: make(chan [][]byte, 100),
-		exitChannel:exitChannel}
+		exitChannel: exitChannel}
 	err := serverState.initializeServer()
 	if err != nil {
 		log.Fatal(err)
