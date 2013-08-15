@@ -1,4 +1,7 @@
 *.py[co]
+*.goe
+*.test
+*.out
 
 # Packages
 *.egg
