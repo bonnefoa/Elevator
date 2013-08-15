@@ -10,7 +10,7 @@ func TestRoutine(t *testing.T) {
     defer env.destroy()
 
     for i, tt := range testOperationDatas {
-        request := &Request{ dbUID:env.Db.UID, Command:tt.op,
+        request := &Request{ dbUID:env.db.UID, Command:tt.op,
             Args:tt.request, requestType: typeDb}
         res, err := env.DbStore.HandleRequest(request)
         if !reflect.DeepEqual(err, tt.expectedError) {

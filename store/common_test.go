@@ -24,7 +24,7 @@ func getTestConf() *StoreConfig {
 type Env struct {
 	Tester
     *DbStore
-    *Db
+    *db
     *StoreConfig
 }
 
@@ -36,16 +36,16 @@ func setupEnv(t Tester) *Env {
 	if err != nil {
 		env.Fatalf("Error when creating test db %v", err)
 	}
-	res, err := DbConnect(env.DbStore, ToBytes(TestDb))
+	res, err := Connect(env.DbStore, ToBytes(TestDb))
 	if err != nil {
 		env.Fatalf("Error on connection %v", err)
 	}
 	dbUID := string(res[0])
-	env.Db = env.Container[dbUID]
-	if env.Db == nil {
+	env.db = env.Container[dbUID]
+	if env.db == nil {
 		env.Fatalf("No db for uid %v", dbUID)
 	}
-	if env.Db.status == statusUnmounted {
+	if env.db.status == statusUnmounted {
 		env.Fatalf("Db is unmounted %s", dbUID)
 	}
 	if err != nil {
@@ -59,7 +59,7 @@ func (env *Env) destroy() {
     env.CleanConfiguration()
 }
 
-func fillNKeys(db *Db, n int) {
+func fillNKeys(db *db, n int) {
 	req := make([]string, n*3)
 	for i := 0; i < n*3; i += 3 {
 		req[i] = SignalBatchPut

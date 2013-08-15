@@ -44,7 +44,7 @@ func TestOperations(t *testing.T) {
     defer env.destroy()
     for i, tt := range testOperationDatas {
         command := databaseComands[tt.op]
-        res, err := command(env.Db, tt.request)
+        res, err := command(env.db, tt.request)
         if !reflect.DeepEqual(err, tt.expectedError) {
             t.Fatalf("%d, expected status %v, got %v", i,
             tt.expectedError, err)
@@ -61,7 +61,7 @@ func BenchmarkAtomicPut(b *testing.B) {
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
         args := ToBytes(fmt.Sprintf("key_%d", i), fmt.Sprintf("val_%d", i))
-        put(env.Db, args)
+        put(env.db, args)
     }
 }
 
@@ -70,18 +70,18 @@ func BenchmarkBatchPut(b *testing.B) {
     defer env.destroy()
 
     b.ResetTimer()
-    fillNKeys(env.Db, b.N)
+    fillNKeys(env.db, b.N)
 }
 
 func BenchmarkGet(b *testing.B) {
     env := setupEnv(b)
     defer env.destroy()
 
-    fillNKeys(env.Db, b.N)
+    fillNKeys(env.db, b.N)
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
         args := ToBytes(fmt.Sprintf("key_%d", i))
-        get(env.Db, args)
+        get(env.db, args)
     }
 }
 
@@ -89,39 +89,39 @@ func BenchmarkBatchDelete(b *testing.B) {
     env := setupEnv(b)
     defer env.destroy()
 
-    fillNKeys(env.Db, b.N)
+    fillNKeys(env.db, b.N)
     b.ResetTimer()
     args := make([]string, b.N*2)
     for i := 0; i < b.N*2; i += 2 {
         args[i] = SignalBatchDelete
         args[i+1] = fmt.Sprintf("key_%d", i)
     }
-    batch(env.Db, ToBytes(args...))
+    batch(env.db, ToBytes(args...))
 }
 
 func BenchmarkDelete(b *testing.B) {
     env := setupEnv(b)
     defer env.destroy()
 
-    fillNKeys(env.Db, b.N)
+    fillNKeys(env.db, b.N)
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
         args := ToBytes(fmt.Sprintf("key_%d", i))
-        dbDelete(env.Db, args)
+        dbDelete(env.db, args)
     }
 }
 
-func templateMGet(b *testing.B, numKeys int, fun func(*Db, [][]byte) ([][]byte, error)) {
+func templateMGet(b *testing.B, numKeys int, fun func(*db, [][]byte) ([][]byte, error)) {
     env := setupEnv(b)
     defer env.destroy()
-    fillNKeys(env.Db, b.N)
+    fillNKeys(env.db, b.N)
     get := make([][]byte, numKeys)
     for i := 0; i < numKeys; i++ {
         get[i] = []byte(fmt.Sprintf("key_%d", i))
     }
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
-        fun(env.Db, get)
+        fun(env.db, get)
     }
 }
 

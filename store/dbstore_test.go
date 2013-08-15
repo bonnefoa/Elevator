@@ -27,5 +27,5 @@ func TestDbstoreLoad(t *testing.T) {
         t.Fatal(err)
     }
     t.Logf("Db store is %q", env.DbStore)
-    env.DbStore.Mount(env.Db.UID)
+    env.DbStore.Mount(env.db.UID)
 }
