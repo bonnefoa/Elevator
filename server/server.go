@@ -7,6 +7,7 @@ import (
 	store "github.com/oleiade/Elevator/store"
 	"log"
 	"github.com/golang/glog"
+    "sync"
 )
 
 const monitorInproc = "inproc://close"
@@ -116,7 +117,8 @@ func (s *serverState) LoopPolling() {
 // and loop until an exit signal is received
 func ListenAndServe(config *config, exitChannel chan bool) {
 	glog.Info(fmt.Sprintf("Elevator started on %s", config.Endpoint))
-	serverState := &serverState{config: config, recvChannel: make(chan [][]byte, 100),
+	serverState := &serverState{config: config,
+        recvChannel: make(chan [][]byte, 100),
 		exitChannel: exitChannel}
 	err := serverState.initializeServer()
 	if err != nil {
@@ -125,14 +127,17 @@ func ListenAndServe(config *config, exitChannel chan bool) {
 	workerExitChannel := make(chan bool, 0)
 	worker := worker{serverState.dbStore, nil, serverState.Context,
 		serverState.recvChannel, workerExitChannel}
-	for i := 0; i < 5; i++ {
-		go worker.startWorker()
+    wg := &sync.WaitGroup{}
+	for i := 0; i < 1; i++ {
+		go worker.startWorker(wg)
 	}
+    wg.Add(1)
 	go serverState.LoopPolling()
 	<-exitChannel
 	glog.Info("Exiting server")
 	// Closing workers
 	close(workerExitChannel)
+    wg.Wait()
 	// Closing sockets and context
 	serverState.closeServer()
 }

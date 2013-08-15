@@ -5,6 +5,7 @@ import (
 	zmq "github.com/bonnefoa/go-zeromq"
 	store "github.com/oleiade/Elevator/store"
 	"github.com/golang/glog"
+    "sync"
 )
 
 // worker accepts incoming request from server and
@@ -65,15 +66,16 @@ func (w *worker) processRequest(parts [][]byte) {
 }
 
 // destroyWorker clean up
-func (w *worker) destroyWorker() {
+func (w *worker) destroyWorker(wg *sync.WaitGroup) {
 	w.Socket.Close()
+    wg.Done()
 }
 
 // startWorker bind response socket and
 // wait for router requests
-func (w worker) startWorker() {
+func (w worker) startWorker(wg *sync.WaitGroup) {
 	w.startResponseSocket()
-	defer w.destroyWorker()
+	defer w.destroyWorker(wg)
 	for {
 		select {
 		case parts := <-w.partsChannel:
