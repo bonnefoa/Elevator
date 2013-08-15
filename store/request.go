@@ -16,10 +16,10 @@ const (
 	typeUnkown
 )
 
-// Request allows to query a specific db if a dbuid is given
+// Request allows to query a specific db if a DbUID is given
 // You can also query the dbstore to create or drop a db
 type Request struct {
-	dbUID   string
+	DbUID   string
 	Command string
 	Args    [][]byte
 	ID      [][]byte
@@ -30,10 +30,10 @@ type Request struct {
 func (r Request) String() string {
 	if len(r.Args) < 10 {
 		return fmt.Sprintf("<Request uid:%s command:%s args:%s>",
-			r.dbUID, r.Command, r.Args)
+			r.DbUID, r.Command, r.Args)
 	}
 	return fmt.Sprintf("<Request uid:%s command:%s args:%s...>",
-		r.dbUID, r.Command, r.Args[0:10])
+		r.DbUID, r.Command, r.Args[0:10])
 }
 
 func getRequestType(command string) requestType {

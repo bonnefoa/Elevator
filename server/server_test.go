@@ -61,7 +61,7 @@ func setupEnv(t Tester) *Env {
 	if err != nil {
 		env.Fatalf("Error on context creation", err)
 	}
-	env.Socket, err = env.NewSocket(zmq.REQ)
+	env.Socket, err = env.NewSocket(zmq.Req)
 	if err != nil {
 		env.Fatalf("Error on socket creation", err)
 	}
@@ -72,17 +72,17 @@ func setupEnv(t Tester) *Env {
 	env.config = getTestConf()
 	env.exitChannel = make(chan bool)
 	go ListenAndServe(env.config, env.exitChannel)
-	req := store.Request{Command: store.DB_CREATE, Args: store.ToBytes(TestDb)}
+	req := store.Request{Command: store.DbCreate, Args: store.ToBytes(TestDb)}
 	req.SendRequest(env.Socket)
 	response := ReceiveResponse(env.Socket)
-	if response.Status != SUCCESS {
+	if response.Status != Success {
 		env.Fatalf("Error on db creation %v (test conf was %q)",
 			response, env.config)
 	}
-	req = store.Request{Command: store.DB_CONNECT, Args: store.ToBytes(TestDb)}
+	req = store.Request{Command: store.DbConnect, Args: store.ToBytes(TestDb)}
 	req.SendRequest(env.Socket)
 	response = ReceiveResponse(env.Socket)
-	if response.Status != SUCCESS {
+	if response.Status != Success {
 		env.Fatalf("Error on db connection %q", response)
 	}
 	env.uid = string(response.Data[0])
@@ -98,17 +98,17 @@ func (env *Env) destroy() {
 func TestServer(t *testing.T) {
 	env := setupEnv(t)
 	defer env.destroy()
-	req := store.Request{Command: store.DB_PUT, Args: store.ToBytes("key", "val"), DbUid: env.uid}
+	req := store.Request{Command: store.DbPut, Args: store.ToBytes("key", "val"), DbUID: env.uid}
 	req.SendRequest(env.Socket)
 	response := ReceiveResponse(env.Socket)
-	if response.Status != SUCCESS {
+	if response.Status != Success {
 		t.Fatalf("Error on db put %q", response)
 	}
-	req = store.Request{Command: store.DB_GET,
-		Args: store.ToBytes("key"), DbUid: env.uid}
+	req = store.Request{Command: store.DbGet,
+		Args: store.ToBytes("key"), DbUID: env.uid}
 	req.SendRequest(env.Socket)
 	response = ReceiveResponse(env.Socket)
-	if response.Status != SUCCESS {
+	if response.Status != Success {
 		t.Fatalf("Error on db get %q", response)
 	}
 	expectedValue := store.ToBytes("val")
@@ -116,10 +116,10 @@ func TestServer(t *testing.T) {
 		t.Fatalf("Expected to fetch 'key' value %q, got %q", expectedValue, response.Data[0])
 	}
 
-	req = store.Request{Command: store.DB_GET, Args: store.ToBytes("key_2"), DbUid: env.uid}
+	req = store.Request{Command: store.DbGet, Args: store.ToBytes("key_2"), DbUID: env.uid}
 	req.SendRequest(env.Socket)
 	response = ReceiveResponse(env.Socket)
-	if response.Status != KEY_ERROR {
+	if response.Status != KeyError {
 		t.Fatalf("Expected key error, got %q", response.Status)
 	}
 }
@@ -127,7 +127,7 @@ func TestServer(t *testing.T) {
 func getMPut(n int) [][]byte {
 	args := make([]string, n*3)
 	for i := 0; i < n*3; i += 3 {
-		args[i] = store.SIGNAL_BATCH_PUT
+		args[i] = store.SignalBatchPut
 		args[i+1] = fmt.Sprintf("key_%d", i)
 		args[i+2] = fmt.Sprintf("val_%d", i)
 	}
@@ -139,16 +139,16 @@ func BenchmarkServerGet(b *testing.B) {
 	defer env.destroy()
 
 	args := getMPut(b.N)
-	req := store.Request{Command: store.DB_BATCH, Args: args, DbUid: env.uid}
+	req := store.Request{Command: store.DbBatch, Args: args, DbUID: env.uid}
 	req.SendRequest(env.Socket)
 	response := ReceiveResponse(env.Socket)
-	if response.Status != SUCCESS {
+	if response.Status != Success {
 		b.Fatalf("Error on db batch %q", response)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		request := store.Request{Command: store.DB_GET,
-			Args: store.ToBytes(fmt.Sprintf("key_%d", i)), DbUid: env.uid}
+		request := store.Request{Command: store.DbGet,
+			Args: store.ToBytes(fmt.Sprintf("key_%d", i)), DbUID: env.uid}
 		request.SendRequest(env.Socket)
 		response = ReceiveResponse(env.Socket)
 	}

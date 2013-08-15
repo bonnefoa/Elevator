@@ -10,7 +10,7 @@ func BenchmarkPackUnpack(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		args[i] = []byte(string(i))
 	}
-	request := Request{Command: DbGet, Args: args, dbUID: "Test"}
+	request := Request{Command: DbGet, Args: args, DbUID: "Test"}
 
 	var buffer bytes.Buffer
 	PackInto(request, &buffer)

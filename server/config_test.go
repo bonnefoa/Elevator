@@ -8,7 +8,7 @@ import (
 
 func TestConfigFromPath(t *testing.T) {
 	expected := newConfig()
-	c, _ := ConfFromFile("conf/elevator.conf")
+	c, _ := confFromFile("conf/elevator.conf")
 	if !reflect.DeepEqual(c, expected) {
 		t.Fatalf("\nExpected \n%q\ngot \n%q", expected, c)
 	}
@@ -20,7 +20,7 @@ func TestConfigFromCommandLine(t *testing.T) {
 		"GA",
 		"Specifies config file path")
 	config := newConfig()
-	SetFlag(fs, config.ServerConfig)
+	setFlag(fs, config.serverConfig)
 
 	err := fs.Parse([]string{"-c", "toto", "-d"})
 	t.Log(fs.Args())

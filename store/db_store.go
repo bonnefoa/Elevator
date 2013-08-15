@@ -229,9 +229,9 @@ func (store *DbStore) HandleRequest(request *Request) ([][]byte, error) {
 		res, err := storeCommands[request.Command](store, request.Args)
 		return res, err
 	case typeDb:
-		db, foundDb := store.Container[request.dbUID]
+		db, foundDb := store.Container[request.DbUID]
 		if !foundDb {
-			return nil, NoSuchDbUIDError(request.dbUID)
+			return nil, NoSuchDbUIDError(request.DbUID)
 		}
 		if db.status == statusUnmounted {
 			err := db.Mount(store.Options)
