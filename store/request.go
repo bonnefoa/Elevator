@@ -32,8 +32,8 @@ func (r Request) String() string {
 		return fmt.Sprintf("<Request uid:%s command:%s args:%s>",
 			r.DbUID, r.Command, r.Args)
 	}
-	return fmt.Sprintf("<Request uid:%s command:%s args:%s...>",
-		r.DbUID, r.Command, r.Args[0:10])
+	return fmt.Sprintf("<Request uid:%s command:%s args:%s...(%d)>",
+		r.DbUID, r.Command, r.Args[0:10], len(r.Args))
 }
 
 func getRequestType(command string) requestType {
@@ -48,6 +48,9 @@ func getRequestType(command string) requestType {
 
 // SendRequest pack request and send it via the given zero mq socket
 func (r *Request) SendRequest(socket *zmq.Socket) {
+    if glog.V(1) {
+        glog.Info("Sending request ", r)
+    }
 	buffer := bytes.Buffer{}
 	PackInto(r, &buffer)
 	socket.SendMultipart([][]byte{buffer.Bytes()}, 0)
@@ -62,7 +65,9 @@ func PartsToRequest(parts [][]byte) (*Request, error) {
 	msg := bytes.NewBuffer(rawMsg)
 	// Deserialize request message and fulfill request
 	// obj with it's content
-	glog.Info("Unpacking message %s", msg)
+    if glog.V(1) {
+        glog.Info("Unpacking message %s", msg)
+    }
 	UnpackFrom(request, msg)
 	request.ID = id
 

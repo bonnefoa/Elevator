@@ -150,9 +150,9 @@ func (store *DbStore) Add(dbName string) (err error) {
 		glog.Error(err)
 		return err
 	}
-	glog.Info(func() string {
-		return fmt.Sprintf("Database %s added to store", dbName)
-	})
+	if glog.V(2) {
+        glog.Info(fmt.Sprintf("Database %s added to store", dbName))
+	}
 	return nil
 }
 

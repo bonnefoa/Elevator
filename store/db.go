@@ -76,13 +76,13 @@ func (db *db) Mount(options *leveldb.Options) (err error) {
 		db.responseChan = make(chan *dbResult, 100)
 		go db.StartRoutine()
 	} else {
-		error := fmt.Errorf("Database %s already mounted", db.Name)
-		glog.Error(error)
-		return error
+		err := fmt.Errorf("Database %s already mounted", db.Name)
+		glog.Error(err)
+		return err
 	}
-	glog.Info(func() string {
-		return fmt.Sprintf("Database %s mounted", db.Name)
-	})
+	if glog.V(2) {
+        glog.Info(fmt.Sprintf("Database %s mounted", db.Name))
+	}
 	return nil
 }
 
@@ -95,12 +95,12 @@ func (db *db) Unmount() (err error) {
 		close(db.responseChan)
 		db.status = statusUnmounted
 	} else {
-        error := fmt.Errorf("Db: Database %s already unmounted", db.Name)
-		glog.Error(error)
-		return error
+        err := fmt.Errorf("Db: Database %s already unmounted", db.Name)
+		glog.Error(err)
+		return err
 	}
-	glog.Info(func() string {
-        return fmt.Sprintf("Db: Database %s unmounted", db.Name)
-	})
+	if glog.V(2) {
+        glog.Infoln("Db: Database %s unmounted", db.Name)
+    }
 	return nil
 }
