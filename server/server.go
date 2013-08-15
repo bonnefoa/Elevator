@@ -3,33 +3,33 @@ package server
 import (
 	"bytes"
 	"fmt"
-	l4g "github.com/alecthomas/log4go"
 	zmq "github.com/bonnefoa/go-zeromq"
 	store "github.com/oleiade/Elevator/store"
 	"log"
+	"github.com/golang/glog"
 )
 
 const monitorInproc = "inproc://close"
 const responseInproc = "inproc://response"
 
-type ServerState struct {
+type serverState struct {
 	*zmq.Context
 	receiveSocket  *zmq.Socket
 	responseSocket *zmq.Socket
 	dbStore        *store.DbStore
-	*Config
+	*config
 	recvChannel chan [][]byte
 	exitChannel chan bool
 }
 
 // Creates and binds the zmq socket for the server
 // to listen on
-func (s *ServerState) initializeServer() (err error) {
+func (s *serverState) initializeServer() (err error) {
 	s.Context, err = zmq.NewContext()
 	if err != nil {
 		return
 	}
-	s.receiveSocket, err = s.NewSocket(zmq.ROUTER)
+	s.receiveSocket, err = s.NewSocket(zmq.Router)
 	if err != nil {
 		return
 	}
@@ -41,7 +41,7 @@ func (s *ServerState) initializeServer() (err error) {
 	if err != nil {
 		return
 	}
-	s.responseSocket, err = s.NewSocket(zmq.PULL)
+	s.responseSocket, err = s.NewSocket(zmq.Pull)
 	if err != nil {
 		return
 	}
@@ -49,86 +49,88 @@ func (s *ServerState) initializeServer() (err error) {
 	return
 }
 
-func (s *ServerState) closeServer() {
-	l4g.Debug("Unmounting databases")
+func (s *serverState) closeServer() {
+	glog.Info("Unmounting databases")
 	s.dbStore.UnmountAll()
-	l4g.Debug("Closing receive socket")
+	glog.Info("Closing receive socket")
 	s.receiveSocket.Close()
-	l4g.Debug("Closing response socket")
+	glog.Info("Closing response socket")
 	s.responseSocket.Close()
-	l4g.Debug("Closing context")
+	glog.Info("Closing context")
 	s.Context.Destroy()
-	l4g.Debug("Closing receive and exit channel")
+	glog.Info("Closing receive and exit channel")
 	close(s.recvChannel)
 	close(s.exitChannel)
 }
 
+// ReceiveResponse fetch an incoming response from the socket
+// The message is expected to be single frame
 func ReceiveResponse(socket *zmq.Socket) *Response {
 	response := &Response{}
 	parts, err := socket.RecvMultipart(0)
 	if err != nil {
-		l4g.Warn("Error on response receive ", err)
+		glog.Warning("Error on response receive ", err)
 	}
 	store.UnpackFrom(response, bytes.NewBuffer(parts.Data[0]))
 	parts.Close()
 	return response
 }
 
-func (s *ServerState) LoopPolling() {
+func (s *serverState) LoopPolling() {
 	// Poll for events on the zmq socket
 	// and send incoming requests in the recv channel
-	pollers := zmq.PollItems{
-		&zmq.PollItem{Socket: s.receiveSocket, Events: zmq.POLLIN},
-		&zmq.PollItem{Socket: s.responseSocket, Events: zmq.POLLIN},
-	}
+    pollReceive := &zmq.PollItem{Socket: s.receiveSocket, Events: zmq.Pollin, REvents:0}
+    pollResponse := &zmq.PollItem{Socket: s.responseSocket, Events: zmq.Pollin, REvents:0}
+	pollers := zmq.PollItems{ pollReceive, pollResponse }
 	for {
 		_, err := pollers.Poll(-1)
 		if err != nil {
-			l4g.Info("Exiting loop polling")
+			glog.Info("Exiting loop polling")
 			return
 		}
-		if pollers[0].REvents&zmq.POLLIN > 0 {
+		if pollers[0].REvents&zmq.Pollin > 0 {
 			parts, err := s.receiveSocket.RecvMultipart(0)
 			if err != nil {
-				l4g.Warn("Error on receive ", err)
+				glog.Warning("Error on receive ", err)
 				continue
 			}
 			s.recvChannel <- parts.Data
 			parts.Close()
 		}
-		if pollers[1].REvents&zmq.POLLIN > 0 {
+		if pollers[1].REvents&zmq.Pollin > 0 {
 			parts, err := s.responseSocket.RecvMultipart(0)
-			l4g.Debug("Sending response")
 			if err != nil {
-				l4g.Warn("Error on response receive ", err)
+				glog.Warning("Error on response receive ", err)
 				continue
 			}
 			err = s.receiveSocket.SendMultipart(parts.Data, 0)
 			parts.Close()
 			if err != nil {
-				l4g.Warn("Error on response send ", err)
+				glog.Warning("Error on response send ", err)
 			}
 		}
 	}
 }
 
-func ListenAndServe(config *Config, exitChannel chan bool) {
-	l4g.Info(fmt.Sprintf("Elevator started on %s", config.Endpoint))
-	serverState := &ServerState{Config: config, recvChannel: make(chan [][]byte, 100),
+// ListenAndServe starts listening socket, initialize worker
+// and loop until an exit signal is received
+func ListenAndServe(config *config, exitChannel chan bool) {
+	glog.Info(fmt.Sprintf("Elevator started on %s", config.Endpoint))
+	serverState := &serverState{config: config, recvChannel: make(chan [][]byte, 100),
 		exitChannel: exitChannel}
 	err := serverState.initializeServer()
 	if err != nil {
 		log.Fatal(err)
 	}
 	workerExitChannel := make(chan bool, 0)
-	worker := Worker{serverState.dbStore, nil, serverState.Context,
+	worker := worker{serverState.dbStore, nil, serverState.Context,
 		serverState.recvChannel, workerExitChannel}
 	for i := 0; i < 5; i++ {
-		go worker.StartWorker()
+		go worker.startWorker()
 	}
 	go serverState.LoopPolling()
 	<-exitChannel
-	l4g.Info("Exiting server")
+	glog.Info("Exiting server")
 	// Closing workers
 	close(workerExitChannel)
 	// Closing sockets and context

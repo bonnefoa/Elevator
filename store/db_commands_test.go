@@ -12,31 +12,31 @@ var testOperationDatas = []struct {
 	expectedError   error
 	data           [][]byte
 }{
-	{DB_GET, ToBytes("key"), KeyError("key"), nil},
+	{DbGet, ToBytes("key"), KeyError("key"), nil},
 
-	{DB_PUT, ToBytes("key", "val"), nil, nil},
-	{DB_PUT, ToBytes("key2", "val2"), nil, nil},
-	{DB_PUT, ToBytes("key3", "val3"), nil, nil},
+	{DbPut, ToBytes("key", "val"), nil, nil},
+	{DbPut, ToBytes("key2", "val2"), nil, nil},
+	{DbPut, ToBytes("key3", "val3"), nil, nil},
 
-	{DB_GET, ToBytes("key"), nil, ToBytes("val")},
-	{DB_MGET, ToBytes("key", "key2"), nil,
+	{DbGet, ToBytes("key"), nil, ToBytes("val")},
+	{DbMget, ToBytes("key", "key2"), nil,
 		ToBytes("val", "val2")},
-	{DB_RANGE, ToBytes("key", "key3"), nil,
+	{DbRange, ToBytes("key", "key3"), nil,
 		ToBytes("key", "val", "key2", "val2", "key3", "val3")},
 
-	{DB_SLICE, ToBytes("key", "2"), nil,
+	{DbSlice, ToBytes("key", "2"), nil,
 		ToBytes("key", "val", "key2", "val2")},
 
-	{DB_DELETE, ToBytes("key"), nil, nil},
-	{DB_GET, ToBytes("key"), KeyError("key"), nil},
+	{DbDelete, ToBytes("key"), nil, nil},
+	{DbGet, ToBytes("key"), KeyError("key"), nil},
 
-	{DB_BATCH, ToBytes(SIGNAL_BATCH_PUT, "batch1", "val1",
-		SIGNAL_BATCH_PUT, "batch2", "val2"), nil, nil},
-	{DB_GET, ToBytes("batch1"), nil, ToBytes("val1")},
+	{DbBatch, ToBytes(SignalBatchPut, "batch1", "val1",
+		SignalBatchPut, "batch2", "val2"), nil, nil},
+	{DbGet, ToBytes("batch1"), nil, ToBytes("val1")},
 
-	{DB_BATCH, ToBytes(SIGNAL_BATCH_PUT, "batch3", "val3",
-		SIGNAL_BATCH_DELETE, "batch3"), nil, nil},
-	{DB_GET, ToBytes("batch3"), KeyError("batch3"), nil},
+	{DbBatch, ToBytes(SignalBatchPut, "batch3", "val3",
+		SignalBatchDelete, "batch3"), nil, nil},
+	{DbGet, ToBytes("batch3"), KeyError("batch3"), nil},
 }
 
 func TestOperations(t *testing.T) {
@@ -60,8 +60,8 @@ func BenchmarkAtomicPut(b *testing.B) {
     defer env.destroy()
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
-        args := ToBytes(fmt.Sprintf("key_%i", i), fmt.Sprintf("val_%i", i))
-        Put(env.Db, args)
+        args := ToBytes(fmt.Sprintf("key_%d", i), fmt.Sprintf("val_%d", i))
+        put(env.Db, args)
     }
 }
 
@@ -80,8 +80,8 @@ func BenchmarkGet(b *testing.B) {
     fillNKeys(env.Db, b.N)
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
-        args := ToBytes(fmt.Sprintf("key_%i", i))
-        Get(env.Db, args)
+        args := ToBytes(fmt.Sprintf("key_%d", i))
+        get(env.Db, args)
     }
 }
 
@@ -93,10 +93,10 @@ func BenchmarkBatchDelete(b *testing.B) {
     b.ResetTimer()
     args := make([]string, b.N*2)
     for i := 0; i < b.N*2; i += 2 {
-        args[i] = SIGNAL_BATCH_DELETE
-        args[i+1] = fmt.Sprintf("key_%i", i)
+        args[i] = SignalBatchDelete
+        args[i+1] = fmt.Sprintf("key_%d", i)
     }
-    Batch(env.Db, ToBytes(args...))
+    batch(env.Db, ToBytes(args...))
 }
 
 func BenchmarkDelete(b *testing.B) {
@@ -106,8 +106,8 @@ func BenchmarkDelete(b *testing.B) {
     fillNKeys(env.Db, b.N)
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
-        args := ToBytes(fmt.Sprintf("key_%i", i))
-        Delete(env.Db, args)
+        args := ToBytes(fmt.Sprintf("key_%d", i))
+        dbDelete(env.Db, args)
     }
 }
 
@@ -117,7 +117,7 @@ func templateMGet(b *testing.B, numKeys int, fun func(*Db, [][]byte) ([][]byte, 
     fillNKeys(env.Db, b.N)
     get := make([][]byte, numKeys)
     for i := 0; i < numKeys; i++ {
-        get[i] = []byte(fmt.Sprintf("key_%i", i))
+        get[i] = []byte(fmt.Sprintf("key_%d", i))
     }
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
@@ -126,5 +126,5 @@ func templateMGet(b *testing.B, numKeys int, fun func(*Db, [][]byte) ([][]byte, 
 }
 
 func Benchmark10MGet(b *testing.B) {
-	templateMGet(b, 10, MGet)
+	templateMGet(b, 10, mGet)
 }

@@ -4,76 +4,70 @@ import (
 	"bytes"
 	"fmt"
 	zmq "github.com/bonnefoa/go-zeromq"
+	"github.com/golang/glog"
 )
 
-type TypeCommand int
+// RequestType specificies if the requests should be handled by the dbstore or a specific db
+type requestType int
 
 const (
-	STORE_COMMAND = iota
-	DB_COMMAND
-	UNKNOWN_COMMAND
+	typeStore = iota
+	typeDb
+	typeUnkown
 )
 
+// Request allows to query a specific db if a dbuid is given
+// You can also query the dbstore to create or drop a db
 type Request struct {
-	DbUid   string
+	dbUID   string
 	Command string
 	Args    [][]byte
-	Id      [][]byte
-	TypeCommand TypeCommand
+	ID      [][]byte
+	requestType requestType
 }
 
 // String represents the Request as a normalized string
 func (r Request) String() string {
 	if len(r.Args) < 10 {
 		return fmt.Sprintf("<Request uid:%s command:%s args:%s>",
-			r.DbUid, r.Command, r.Args)
+			r.dbUID, r.Command, r.Args)
 	}
 	return fmt.Sprintf("<Request uid:%s command:%s args:%s...>",
-		r.DbUid, r.Command, r.Args[0:10])
+		r.dbUID, r.Command, r.Args[0:10])
 }
 
-func GetTypeRequest(command string) TypeCommand {
+func getRequestType(command string) requestType {
 	if _, foundStoreCommand := storeCommands[command]; foundStoreCommand {
-		return STORE_COMMAND
+		return typeStore
 	}
 	if _, foundDbCommand := databaseComands[command]; foundDbCommand {
-		return DB_COMMAND
+		return typeDb
 	}
-	return UNKNOWN_COMMAND
+	return typeUnkown
 }
 
-func RequestFromByte(req []byte) (*Request, error) {
-	words := bytes.Split(req, []byte(" "))
-	if len(words) == 0 {
-		return nil, EmptyCommand(req)
-	}
-	cmd := string(bytes.ToUpper(words[0]))
-	typeCommand := GetTypeRequest(cmd)
-	if typeCommand == UNKNOWN_COMMAND {
-		return nil, UnknownCommand(cmd)
-	}
-	args := words[1:]
-	return &Request{Command: cmd, Args: args}, nil
-}
-
-func (request *Request) SendRequest(socket *zmq.Socket) {
+// SendRequest pack request and send it via the given zero mq socket
+func (r *Request) SendRequest(socket *zmq.Socket) {
 	buffer := bytes.Buffer{}
-	PackInto(request, &buffer)
+	PackInto(r, &buffer)
 	socket.SendMultipart([][]byte{buffer.Bytes()}, 0)
 }
 
+// PartsToRequest parse parts from a message receveived from a
+// zmq router socket (with first parts being socket id) to a request
 func PartsToRequest(parts [][]byte) (*Request, error) {
 	request := &Request{}
 	id := parts[0:2]
 	rawMsg := parts[2]
-	var msg *bytes.Buffer = bytes.NewBuffer(rawMsg)
+	msg := bytes.NewBuffer(rawMsg)
 	// Deserialize request message and fulfill request
 	// obj with it's content
+	glog.Info("Unpacking message %s", msg)
 	UnpackFrom(request, msg)
-	request.Id = id
+	request.ID = id
 
-	request.TypeCommand = GetTypeRequest(request.Command)
-	if request.TypeCommand == UNKNOWN_COMMAND {
+	request.requestType = getRequestType(request.Command)
+	if request.requestType == typeUnkown {
 		return request, UnknownCommand(request.Command)
 	}
 	return request, nil

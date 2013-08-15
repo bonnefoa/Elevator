@@ -1,87 +1,94 @@
 package store
 
 import (
-	"errors"
 )
 
-var NO_SUCH_DB = errors.New("Database does not exist")
 
 var storeCommands = map[string]func(*DbStore, [][]byte) ([][]byte, error){
-	DB_CREATE:  DbCreate,
-	DB_DROP:    DbDrop,
-	DB_CONNECT: DbConnect,
-	DB_MOUNT:   DbMount,
-	DB_UMOUNT:  DbUnmount,
-	DB_LIST:    DbList,
+	DbCreate:  Create,
+	DbDrop:    Drop,
+	DbConnect: Connect,
+	DbMount:   Mount,
+	DbUmount:  Umount,
+	DbList:    List,
 }
 
 // List enumerates  all the databases
 // in DbStore
 func (store *DbStore) List() []string {
-	db_names := make([]string, len(store.Container))
+	dbNames := make([]string, len(store.Container))
 	i := 0
 	for _, db := range store.Container {
-		db_names[i] = db.Name
+		dbNames[i] = db.Name
 		i++
 	}
-	return db_names
+	return dbNames
 }
 
-func DbCreate(db_store *DbStore, args [][]byte) ([][]byte, error) { db_name := string(args[0])
-	err := db_store.Add(db_name)
+// Create creates a new database with the given name
+// Fail if a database with the same name already exists
+func Create(dbStore *DbStore, args [][]byte) ([][]byte, error) {
+	dbName := string(args[0])
+	err := dbStore.Add(dbName)
 	if err != nil {
 		return nil, DatabaseError(err)
 	}
 	return nil, nil
 }
 
-func DbDrop(db_store *DbStore, args [][]byte) ([][]byte, error) {
-	db_name := string(args[0])
-	err := db_store.Drop(db_name)
+// Drop drops a data with the given name
+// Fail if no database with the given name exists
+func Drop(dbStore *DbStore, args [][]byte) ([][]byte, error) {
+	dbName := string(args[0])
+	err := dbStore.Drop(dbName)
 	if err != nil {
 		return nil, DatabaseError(err)
 	}
 	return nil, nil
 }
 
-func DbConnect(db_store *DbStore, args [][]byte) ([][]byte, error) {
-	db_name := string(args[0])
-	db_uid, exists := db_store.NameToUid[db_name]
+// Connect return the matching UID from the given name
+func Connect(dbStore *DbStore, args [][]byte) ([][]byte, error) {
+	dbName := string(args[0])
+	dbUID, exists := dbStore.nameToUID[dbName]
 	if !exists {
-		return nil, NoSuchDbError(db_name)
+		return nil, NoSuchDbError(dbName)
 	}
-	return ToBytes(db_uid), nil
+	return ToBytes(dbUID), nil
 }
 
-func DbList(db_store *DbStore, args [][]byte) ([][]byte, error) {
-	db_names := db_store.List()
-	data := make([][]byte, len(db_names))
-	for index, db_name := range db_names {
-		data[index] = []byte(db_name)
+// List lists all available databases from the store
+func List(dbStore *DbStore, args [][]byte) ([][]byte, error) {
+	dbNames := dbStore.List()
+	data := make([][]byte, len(dbNames))
+	for index, dbName := range dbNames {
+		data[index] = []byte(dbName)
 	}
 	return data, nil
 }
 
-func DbMount(db_store *DbStore, args [][]byte) ([][]byte, error) {
-	db_name := string(args[0])
-	db_uid, exists := db_store.NameToUid[db_name]
+// Mount open connection to the database with the given name
+func Mount(dbStore *DbStore, args [][]byte) ([][]byte, error) {
+	dbName := string(args[0])
+	dbUID, exists := dbStore.nameToUID[dbName]
 	if !exists {
-		return nil, NoSuchDbError(db_name)
+		return nil, NoSuchDbError(dbName)
 	}
-	err := db_store.Mount(db_store.Container[db_uid].Name)
+	err := dbStore.Mount(dbStore.Container[dbUID].Name)
 	if err != nil {
 		return nil, DatabaseError(err)
 	}
 	return nil, nil
 }
 
-func DbUnmount(db_store *DbStore, args [][]byte) ([][]byte, error) {
-	db_name := string(args[0])
-	db_uid, exists := db_store.NameToUid[db_name]
+// Umount closes connection to the database with the given name
+func Umount(dbStore *DbStore, args [][]byte) ([][]byte, error) {
+	dbName := string(args[0])
+	dbUID, exists := dbStore.nameToUID[dbName]
 	if !exists {
-		return nil, NoSuchDbError(db_name)
+		return nil, NoSuchDbError(dbName)
 	}
-	err := db_store.Unmount(db_uid)
+	err := dbStore.Unmount(dbUID)
 	if err != nil {
 		return nil, DatabaseError(err)
 	}

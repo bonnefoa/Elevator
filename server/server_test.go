@@ -26,7 +26,7 @@ type Env struct {
 	*zmq.Socket
 	Tester
 	uid string
-	*Config
+	*config
 	exitChannel chan bool
 }
 
@@ -35,22 +35,22 @@ func cleanConfTemp(c *store.StoreConfig) {
 	os.RemoveAll(c.StoragePath)
 }
 
-func getTestConf() *Config {
+func getTestConf() *config {
 	tempDir, _ := ioutil.TempDir("/tmp", "elevator")
-	config := NewConfig()
-	logConfig := &LogConfiguration{
+	config := newConfig()
+	logConfig := &logConfiguration{
 		LogFile:  path.Join(tempDir, "elevator.log"),
 		LogLevel: "DEBUG",
 	}
-	ConfigureLogger(logConfig)
+	configureLogger(logConfig)
 
 	config.StoreConfig.CoreConfig.StorePath = path.Join(tempDir, "store")
 	config.StoreConfig.CoreConfig.StoragePath = tempDir
 
-	config.ServerConfig.Endpoint = TestEndpoint
-	config.ServerConfig.Pidfile = path.Join(tempDir, "elevator.pid")
+	config.serverConfig.Endpoint = TestEndpoint
+	config.serverConfig.Pidfile = path.Join(tempDir, "elevator.pid")
 
-	config.LogConfiguration = logConfig
+	config.logConfiguration = logConfig
 	return config
 }
 
@@ -69,15 +69,15 @@ func setupEnv(t Tester) *Env {
 	if err != nil {
 		env.Fatalf("Error on socket connect", err)
 	}
-	env.Config = getTestConf()
+	env.config = getTestConf()
 	env.exitChannel = make(chan bool)
-	go ListenAndServe(env.Config, env.exitChannel)
+	go ListenAndServe(env.config, env.exitChannel)
 	req := store.Request{Command: store.DB_CREATE, Args: store.ToBytes(TestDb)}
 	req.SendRequest(env.Socket)
 	response := ReceiveResponse(env.Socket)
 	if response.Status != SUCCESS {
 		env.Fatalf("Error on db creation %v (test conf was %q)",
-			response, env.Config)
+			response, env.config)
 	}
 	req = store.Request{Command: store.DB_CONNECT, Args: store.ToBytes(TestDb)}
 	req.SendRequest(env.Socket)

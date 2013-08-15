@@ -1,36 +1,36 @@
 package store
 
+// DbMountedStatus identifies if a connector to the leveldb database
+// is opened
 type DbMountedStatus int
-type DbCommand string
-type StoreCommand string
 
 const (
-	DB_STATUS_MOUNTED = DbMountedStatus(1)
-	DB_STATUS_UNMOUNTED = DbMountedStatus(0)
+	statusUnmounted DbMountedStatus = iota
+	statusMounted
 )
 
 // Command codes
 const (
-	DB_GET     = "GET"
-	DB_PUT     = "PUT"
-	DB_DELETE  = "DELETE"
-	DB_RANGE   = "RANGE"
-	DB_SLICE   = "SLICE"
-	DB_BATCH   = "BATCH"
-	DB_MGET    = "MGET"
-	DB_PING    = "PING"
+	DbGet     = "GET"
+	DbPut     = "PUT"
+	DbDelete  = "DELETE"
+	DbRange   = "RANGE"
+	DbSlice   = "SLICE"
+	DbBatch   = "BATCH"
+	DbMget    = "MGET"
+	DbPing    = "PING"
 
-	DB_CONNECT = "DBCONNECT"
-	DB_MOUNT   = "DBMOUNT"
-	DB_UMOUNT  = "DBUMOUNT"
-	DB_CREATE  = "DBCREATE"
-	DB_DROP    = "DBDROP"
-	DB_LIST    = "DBLIST"
-	DB_REPAIR  = "DBREPAIR"
+	DbConnect = "DBCONNECT"
+	DbMount   = "DBMOUNT"
+	DbUmount  = "DBUMOUNT"
+	DbCreate  = "DBCREATE"
+	DbDrop    = "DBDROP"
+	DbList    = "DBLIST"
+	DbRepair  = "DBREPAIR"
 )
 
 // batches signals
 const (
-	SIGNAL_BATCH_PUT    = "BPUT"
-	SIGNAL_BATCH_DELETE = "BDEL"
+	SignalBatchPut    = "BPUT"
+	SignalBatchDelete = "BDEL"
 )

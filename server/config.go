@@ -4,57 +4,58 @@ import (
 	store "github.com/oleiade/Elevator/store"
 )
 
-type Config struct {
-	*ServerConfig
+type config struct {
+	*serverConfig
 	*store.StoreConfig
-	*LogConfiguration
+	*logConfiguration
 }
 
-type ServerConfig struct {
+type serverConfig struct {
 	Daemon   bool   `ini:"daemonize" short:"d" description:"Launches elevator as a daemon"`
 	Endpoint string `ini:"endpoint" short:"e" description:"Endpoint to bind elevator to"`
 	Pidfile  string `ini:"pidfile"`
 }
 
-type LogConfiguration struct {
+type logConfiguration struct {
 	LogFile  string `ini:"log_file"`
 	LogLevel string `ini:"log_level" short:"l" description:"Sets elevator verbosity"`
 }
 
-func NewConfig() *Config {
+func newConfig() *config {
 	storeConfig := store.NewStoreConfig()
-	serverConfig := NewServerConfig()
-	logConfiguration := NewLogConfiguration()
-	return &Config{serverConfig, storeConfig, logConfiguration}
+	serverConfig := newServerConfig()
+
+	logConfiguration := newLogConfiguration()
+	return &config{serverConfig, storeConfig, logConfiguration}
 }
 
-func NewServerConfig() *ServerConfig {
-	c := &ServerConfig{
+func newServerConfig() *serverConfig {
+	c := &serverConfig{
 		Daemon:   false,
-		Endpoint: DEFAULT_ENDPOINT,
+		Endpoint: DefaultEndpoint,
 		Pidfile:  "/var/run/elevator.pid",
 	}
 	return c
 }
 
-func NewLogConfiguration() *LogConfiguration {
-	return &LogConfiguration{
+func newLogConfiguration() *logConfiguration {
+	return &logConfiguration{
 		LogFile:  "/var/log/elevator.log",
 		LogLevel: "INFO",
 	}
 }
 
-func ConfFromFile(path string) (*Config, error) {
-	conf := NewConfig()
+func confFromFile(path string) (*config, error) {
+	conf := newConfig()
 	storageConfig := store.NewStorageEngineConfig()
-	if err := LoadConfigFromFile(path, conf.ServerConfig, "core"); err != nil {
+	if err := loadConfigFromFile(path, conf.serverConfig, "core"); err != nil {
 		return conf, err
 	}
-	if err := LoadConfigFromFile(path, &storageConfig, "storage_engine"); err != nil {
+	if err := loadConfigFromFile(path, &storageConfig, "storage_engine"); err != nil {
 		return conf, err
 	}
 	conf.StoreConfig.Options = storageConfig.ToLeveldbOptions()
-	if err := LoadConfigFromFile(path, conf.LogConfiguration, "log"); err != nil {
+	if err := loadConfigFromFile(path, conf.logConfiguration, "log"); err != nil {
 		return conf, err
 	}
 	return conf, nil

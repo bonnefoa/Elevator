@@ -36,7 +36,7 @@ func removePidFile(pidfile string) {
 	}
 }
 
-func Daemon(config *Config, exitChannel chan bool) {
+func daemon(config *config, exitChannel chan bool) {
 	if err := createPidFile(config.Pidfile); err != nil {
 		log.Fatal(err)
 	}

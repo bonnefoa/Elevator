@@ -12,8 +12,7 @@ func TestDbstoreList(t *testing.T) {
     lstDbs := env.DbStore.List()
     expected := []string{TestDb}
     if !reflect.DeepEqual(lstDbs, expected) {
-        t.Fatalf("The db store should contains only [test_db]",
-        lstDbs)
+        t.Fatal("The db store should contains only [test_db]", lstDbs)
     }
 }
 
@@ -28,5 +27,5 @@ func TestDbstoreLoad(t *testing.T) {
         t.Fatal(err)
     }
     t.Logf("Db store is %q", env.DbStore)
-    env.DbStore.Mount(env.Db.Uid)
+    env.DbStore.Mount(env.Db.UID)
 }

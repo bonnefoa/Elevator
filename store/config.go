@@ -5,17 +5,21 @@ import (
 	"os"
 )
 
+// StoreConfig keeps configuration of the path
+// for storage and level db options
 type StoreConfig struct {
 	*CoreConfig
 	*leveldb.Options
 }
 
+// CoreConfig keeps store specific configuration
 type CoreConfig struct {
 	StorePath   string `ini:"database_store"`
 	StoragePath string `ini:"databases_storage_path"`
 	DefaultDb   string `ini:"default_db"`
 }
 
+// StorageEngineConfig keeps configuration for leveldb
 type StorageEngineConfig struct {
 	Compression     bool `ini:"compression"`       // default: true
 	BlockSize       int  `ini:"block_size"`        // default: 4096
@@ -26,13 +30,14 @@ type StorageEngineConfig struct {
 	WriteBufferSize int  `ini:"write_buffer_size"` // default: 64 * 1048576 (64MB)
 }
 
+// NewStoreConfig creates a default StoreConfig
 func NewStoreConfig() *StoreConfig {
-	core := NewCoreConfig()
+	core := newCoreConfig()
 	options := NewStorageEngineConfig().ToLeveldbOptions()
 	return &StoreConfig { core, options }
 }
 
-func NewCoreConfig() *CoreConfig {
+func newCoreConfig() *CoreConfig {
 	c := &CoreConfig{
 		StorePath:   "/var/lib/elevator/store.json",
 		StoragePath: "/var/lib/elevator",
@@ -41,6 +46,7 @@ func NewCoreConfig() *CoreConfig {
 	return c
 }
 
+// NewStorageEngineConfig creates a default storage engine
 func NewStorageEngineConfig() *StorageEngineConfig {
 	return &StorageEngineConfig{
 		Compression:     true,
@@ -53,10 +59,11 @@ func NewStorageEngineConfig() *StorageEngineConfig {
 	}
 }
 
+// ToLeveldbOptions converts storage config to leveldb options
 func (opts StorageEngineConfig) ToLeveldbOptions() *leveldb.Options {
 	options := leveldb.NewOptions()
 	options.SetCreateIfMissing(true)
-	options.SetCompression(leveldb.CompressionOpt(Btoi(opts.Compression)))
+	options.SetCompression(leveldb.CompressionOpt(btoi(opts.Compression)))
 	options.SetBlockSize(opts.BlockSize)
 	options.SetCache(leveldb.NewLRUCache(opts.CacheSize))
 	options.SetFilterPolicy(leveldb.NewBloomFilter(opts.BloomFilterBits))
@@ -66,6 +73,7 @@ func (opts StorageEngineConfig) ToLeveldbOptions() *leveldb.Options {
 	return options
 }
 
+// CleanConfiguration deletes store metadata and databases
 func (c *StoreConfig) CleanConfiguration() {
 	os.RemoveAll(c.StoragePath)
 	os.RemoveAll(c.StorePath)

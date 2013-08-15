@@ -2,12 +2,14 @@ package server
 
 import (
 	"bytes"
-	l4g "github.com/alecthomas/log4go"
 	zmq "github.com/bonnefoa/go-zeromq"
 	store "github.com/oleiade/Elevator/store"
+	"github.com/golang/glog"
 )
 
-type Worker struct {
+// worker accepts incoming request from server and
+// relay them to the dbstore
+type worker struct {
 	*store.DbStore
 	*zmq.Socket
 	*zmq.Context
@@ -15,21 +17,23 @@ type Worker struct {
 	exitChannel  chan bool
 }
 
-func (w *Worker) sendResponse(response *Response) {
+// sendResponse sends request result throught the
+// push socket of the worker to the router
+func (w *worker) sendResponse(response *Response) {
 	var responseBuf bytes.Buffer
 	store.PackInto(response, &responseBuf)
-	parts := response.Id
+	parts := response.id
 	parts = append(parts, responseBuf.Bytes())
 	w.Socket.SendMultipart(parts, 0)
 }
 
-func (w *Worker) sendErrorResponse(id [][]byte, err error) {
-	response := ResponseFromError(id, err)
+func (w *worker) sendErrorResponse(id [][]byte, err error) {
+	response := responseFromError(id, err)
 	w.sendResponse(response)
 }
 
-func (w *Worker) startResponseSocket() error {
-	socket, err := w.NewSocket(zmq.PUSH)
+func (w *worker) startResponseSocket() error {
+	socket, err := w.NewSocket(zmq.Push)
 	if err != nil {
 		return err
 	}
@@ -41,32 +45,35 @@ func (w *Worker) startResponseSocket() error {
 	return nil
 }
 
-func (w *Worker) processRequest(parts [][]byte) {
+func (w *worker) processRequest(parts [][]byte) {
 	request, err := store.PartsToRequest(parts)
 	if err != nil {
-		l4g.Info("Worker: Error on message reading %s", err)
-		w.sendErrorResponse(request.Id, err)
+		glog.Info("Worker: Error on message reading %s", err)
+		w.sendErrorResponse(request.ID, err)
 		return
 	}
 	res, err := w.DbStore.HandleRequest(request)
 	if err != nil {
-		w.sendErrorResponse(request.Id, err)
+		w.sendErrorResponse(request.ID, err)
 	}
 	response := &Response{
-		Status: SUCCESS,
+		Status: Success,
 		Data:   res,
-		Id:     request.Id,
+		id:     request.ID,
 	}
 	w.sendResponse(response)
 }
 
-func (w *Worker) DestroyWorker() {
+// destroyWorker clean up
+func (w *worker) destroyWorker() {
 	w.Socket.Close()
 }
 
-func (w Worker) StartWorker() {
+// startWorker bind response socket and
+// wait for router requests
+func (w worker) startWorker() {
 	w.startResponseSocket()
-	defer w.DestroyWorker()
+	defer w.destroyWorker()
 	for {
 		select {
 		case parts := <-w.partsChannel:
@@ -75,7 +82,7 @@ func (w Worker) StartWorker() {
 			}
 			w.processRequest(parts)
 		case <-w.exitChannel:
-			l4g.Debug("Received exit signal, destroying worker")
+			glog.Info("Received exit signal, destroying worker")
 			return
 		}
 	}

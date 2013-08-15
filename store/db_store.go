@@ -4,27 +4,29 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	l4g "github.com/alecthomas/log4go"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"github.com/golang/glog"
 )
 
+// DbStore allow to create / drop and mount datastores
 type DbStore struct {
 	*StoreConfig
-	Container map[string]*Db
-	NameToUid map[string]string
+	Container map[string]*db
+	nameToUID map[string]string
 }
 
-// DbStore constructor
+// NewDbStore build a dbstore from the given config
 func NewDbStore(config *StoreConfig) *DbStore {
 	return &DbStore{
 		config,
-		make(map[string]*Db),
+		make(map[string]*db),
 		make(map[string]string),
 	}
 }
 
+// InitializeDbStore create and initialize dbStore from given configuration
 func InitializeDbStore(storeConfig *StoreConfig) (*DbStore, error) {
 	dbStore := NewDbStore(storeConfig)
 	err := dbStore.Load()
@@ -34,15 +36,15 @@ func InitializeDbStore(storeConfig *StoreConfig) (*DbStore, error) {
 	return dbStore, err
 }
 
-func (store *DbStore) updateNameToUidIndex() {
+func (store *DbStore) udpateNameToUIDIndex() {
 	for _, db := range store.Container {
-		if _, present := store.NameToUid[db.Name]; present == false {
-			store.NameToUid[db.Name] = db.Uid
+		if _, present := store.nameToUID[db.Name]; present == false {
+			store.nameToUID[db.Name] = db.UID
 		}
 	}
 }
 
-// ReadFromFile syncs the content of the store
+// Load syncs the content of the store
 // description file to the DbStore
 func (store *DbStore) Load() (err error) {
 	data, err := ioutil.ReadFile(store.StorePath)
@@ -53,7 +55,7 @@ func (store *DbStore) Load() (err error) {
 	if err != nil {
 		return err
 	}
-	store.updateNameToUidIndex()
+	store.udpateNameToUIDIndex()
 	return nil
 }
 
@@ -62,8 +64,8 @@ func (store *DbStore) Load() (err error) {
 func (store *DbStore) WriteToFile() (err error) {
 	var data []byte
 	// Check the directory hosting the store exists
-	store_base_path := filepath.Dir(store.StorePath)
-	_, err = os.Stat(store_base_path)
+	storeBasePath := filepath.Dir(store.StorePath)
+	_, err = os.Stat(storeBasePath)
 	if os.IsNotExist(err) {
 		return err
 	}
@@ -75,33 +77,33 @@ func (store *DbStore) WriteToFile() (err error) {
 	return err
 }
 
-// Mount sets the database status to DB_STATUS_MOUNTED
+// Mount sets the database status to statusMounted
 // and instantiates the according leveldb connector
-func (store *DbStore) Mount(db_uid string) (err error) {
-	if db, present := store.Container[db_uid]; present {
+func (store *DbStore) Mount(dbUID string) (err error) {
+	if db, present := store.Container[dbUID]; present {
 		err = db.Mount(store.StoreConfig.Options)
 		if err != nil {
 			return err
 		}
 	} else {
-		error := fmt.Errorf("Database with uid %s does not exist", db_uid)
-		l4g.Error(error)
+		error := fmt.Errorf("Database with uid %s does not exist", dbUID)
+		glog.Error(error)
 		return error
 	}
 	return nil
 }
 
-// Unmount sets the database status to DB_STATUS_UNMOUNTED
+// Unmount sets the database status to statusUnmounted
 // and deletes the according leveldb connector
-func (store *DbStore) Unmount(db_uid string) (err error) {
-	if db, present := store.Container[db_uid]; present {
+func (store *DbStore) Unmount(dbUID string) (err error) {
+	if db, present := store.Container[dbUID]; present {
 		err = db.Unmount()
 		if err != nil {
 			return err
 		}
 	} else {
-		error := fmt.Errorf("Database with uid %s does not exist", db_uid)
-		l4g.Error(error)
+		error := fmt.Errorf("Database with uid %s does not exist", dbUID)
+		glog.Error(error)
 		return error
 	}
 	return nil
@@ -109,86 +111,84 @@ func (store *DbStore) Unmount(db_uid string) (err error) {
 
 // Add a db to the DbStore and syncs it
 // to the store file
-func (store *DbStore) Add(db_name string) (err error) {
-	if _, present := store.NameToUid[db_name]; present {
+func (store *DbStore) Add(dbName string) (err error) {
+	if _, present := store.nameToUID[dbName]; present {
 		return errors.New("Database already exists")
-	} else {
-		var db_path string
-
-		if IsFilePath(db_name) {
-			if !filepath.IsAbs(db_name) {
-				error := errors.New("Creating database from relative path not allowed")
-				l4g.Error(error)
-				return error
-			}
-			db_path = db_name
-			// Check base db path exists
-			dir := filepath.Dir(db_name)
-			exists, err := DirExists(dir)
-			if err != nil {
-				l4g.Error(err)
-				return err
-			} else if !exists {
-				error := fmt.Errorf("%s does not exist", dir)
-				l4g.Error(error)
-				return error
-			}
-		} else {
-			db_path = filepath.Join(store.StoragePath, db_name)
-		}
-		db := NewDb(db_name, db_path)
-		store.Container[db.Uid] = db
-		store.updateNameToUidIndex()
-		err = store.WriteToFile()
-		if err != nil {
-			l4g.Error(err)
-			return err
-		}
-		err = db.Mount(store.StoreConfig.Options)
-		if err != nil {
-			l4g.Error(err)
-			return err
-		}
 	}
-	l4g.Debug(func() string {
-		return fmt.Sprintf("Database %s added to store", db_name)
+	var dbPath string
+	if isFilePath(dbName) {
+		if !filepath.IsAbs(dbName) {
+			error := errors.New("Creating database from relative path not allowed")
+			glog.Error(error)
+			return error
+		}
+		dbPath = dbName
+		// Check base db path exists
+		dir := filepath.Dir(dbName)
+		exists, err := dirExists(dir)
+		if err != nil {
+			glog.Error(err)
+			return err
+		} else if !exists {
+			error := fmt.Errorf("%s does not exist", dir)
+			glog.Error(error)
+			return error
+		}
+	} else {
+		dbPath = filepath.Join(store.StoragePath, dbName)
+	}
+	db := newDb(dbName, dbPath)
+	store.Container[db.UID] = db
+	store.udpateNameToUIDIndex()
+	err = store.WriteToFile()
+	if err != nil {
+		glog.Error(err)
+		return err
+	}
+	err = db.Mount(store.StoreConfig.Options)
+	if err != nil {
+		glog.Error(err)
+		return err
+	}
+	glog.Info(func() string {
+		return fmt.Sprintf("Database %s added to store", dbName)
 	})
 	return nil
 }
 
 // Drop removes a database from DbStore, and syncs it
 // to store file
-func (store *DbStore) Drop(db_name string) (err error) {
-	if db_uid, present := store.NameToUid[db_name]; present {
-		db := store.Container[db_uid]
-		db_path := db.Path
+func (store *DbStore) Drop(dbName string) (err error) {
+	if dbUID, present := store.nameToUID[dbName]; present {
+		db := store.Container[dbUID]
+		dbPath := db.Path
 
-		store.Unmount(db_uid)
-		delete(store.Container, db_uid)
-		delete(store.NameToUid, db_name)
+		store.Unmount(dbUID)
+		delete(store.Container, dbUID)
+		delete(store.nameToUID, dbName)
 		store.WriteToFile()
 
-		err = os.RemoveAll(db_path)
+		err = os.RemoveAll(dbPath)
 		if err != nil {
-			l4g.Error(err)
+			glog.Error(err)
 			return err
 		}
 	} else {
-		error := fmt.Errorf("Database %s does not exist", db_name)
-		l4g.Error(error)
+		error := fmt.Errorf("Database %s does not exist", dbName)
+		glog.Error(error)
 		return error
 	}
-	l4g.Debug(func() string {
-		return fmt.Sprintf("Database %s dropped from store", db_name)
+	glog.Info(func() string {
+		return fmt.Sprintf("Database %s dropped from store", dbName)
 	})
 	return nil
 }
 
 // Status returns a database status defined by constants
-// DB_STATUS_MOUNTED and DB_STATUS_UNMOUNTED
-func (store *DbStore) Status(db_name string) (DbMountedStatus, error) {
-	if db_uid, present := store.NameToUid[db_name]; present {
-		db := store.Container[db_uid]
+// statusMounted and statusUnmounted
+func (store *DbStore) Status(dbName string) (DbMountedStatus, error) {
+	if dbUID, present := store.nameToUID[dbName]; present {
+		db := store.Container[dbUID]
 		return db.status, nil
 	}
 	return -1, errors.New("Database does not exist")
@@ -196,45 +196,45 @@ func (store *DbStore) Status(db_name string) (DbMountedStatus, error) {
 
 // Exists checks if a database present in DbStore
 // exists on disk.
-func (store *DbStore) Exists(db_name string) (bool, error) {
-	if db_uid, present := store.NameToUid[db_name]; present {
-		db := store.Container[db_uid]
-		exists, err := DirExists(db.Path)
+func (store *DbStore) Exists(dbName string) (bool, error) {
+	if dbUID, present := store.nameToUID[dbName]; present {
+		db := store.Container[dbUID]
+		exists, err := dirExists(db.Path)
 		if err != nil {
 			return false, err
 		}
 		if exists == true {
 			return exists, nil
-		} else {
-			// store.drop(db_name)
-			fmt.Println("Dropping")
 		}
+		// store.drop(dbName)
+		fmt.Println("Dropping")
 	}
 	return false, nil
 }
 
+// UnmountAll unmount all db in datastore
 func (store *DbStore) UnmountAll() {
-	l4g.Debug("Closing dbstore")
+	glog.Info("Closing dbstore")
 	for _, db := range store.Container {
-		if db.status == DB_STATUS_MOUNTED {
+		if db.status == statusMounted {
 			db.Unmount()
 		}
 	}
 }
 
-// Redirect and execute given request as a db operation or a store operation
-func (dbStore *DbStore) HandleRequest(request *Request) ([][]byte, error) {
-	switch request.TypeCommand {
-	case STORE_COMMAND:
-		res, err := storeCommands[request.Command](dbStore, request.Args)
+// HandleRequest redirect and execute given request as a db operation or a store operation
+func (store *DbStore) HandleRequest(request *Request) ([][]byte, error) {
+	switch request.requestType {
+	case typeStore:
+		res, err := storeCommands[request.Command](store, request.Args)
 		return res, err
-	case DB_COMMAND:
-		db, foundDb := dbStore.Container[request.DbUid]
+	case typeDb:
+		db, foundDb := store.Container[request.dbUID]
 		if !foundDb {
-			return nil, NoSuchDbuidError(request.DbUid)
+			return nil, NoSuchDbUIDError(request.dbUID)
 		}
-		if db.status == DB_STATUS_UNMOUNTED {
-			err := db.Mount(dbStore.Options)
+		if db.status == statusUnmounted {
+			err := db.Mount(store.Options)
 			if err != nil {
 				return nil, err
 			}

@@ -5,11 +5,13 @@ import (
 	store "github.com/oleiade/Elevator/store"
 )
 
+// Response represents the response send
+// back by the server
 type Response struct {
 	Status ResponseStatus
 	ErrMsg string
 	Data   [][]byte
-	Id     [][]byte
+	id     [][]byte
 }
 
 // String represents the Response as a normalized string
@@ -21,47 +23,49 @@ func (r *Response) String() string {
 		r.Status, r.ErrMsg, r.Data)
 }
 
-func ResponseFromError(id [][]byte, err error) *Response {
-	status := ErrorToStatusCode(err)
+func responseFromError(id [][]byte, err error) *Response {
+	status := errorToStatusCode(err)
 	return &Response{
 		Status: status,
 		ErrMsg: err.Error(),
-		Id:     id,
+		id:     id,
 	}
 }
 
+// ResponseStatus identifies status code send in the response
 type ResponseStatus int
 
+// Response status available
 const (
-	SUCCESS        = ResponseStatus(0)
-	TYPE_ERROR     = ResponseStatus(1)
-	KEY_ERROR      = ResponseStatus(2)
-	VALUE_ERROR    = ResponseStatus(3)
-	INDEX_ERROR    = ResponseStatus(4)
-	RUNTIME_ERROR  = ResponseStatus(5)
-	OS_ERROR       = ResponseStatus(6)
-	DATABASE_ERROR = ResponseStatus(7)
-	SIGNAL_ERROR   = ResponseStatus(8)
-	REQUEST_ERROR  = ResponseStatus(9)
-	UNKNOWN_ERROR  = ResponseStatus(10)
-	UNKOWN_COMMAND = ResponseStatus(11)
+    Success       ResponseStatus = iota
+    TypeError
+    KeyError
+    ValueError
+    IndexError
+    RuntimeError
+    OsError
+    DatabaseError
+    SignalError
+    RequestError
+    UnknownError
+    UnkownCommand
 )
 
-func ErrorToStatusCode(err error) ResponseStatus {
+func errorToStatusCode(err error) ResponseStatus {
 	if err == nil {
-		return SUCCESS
+		return Success
 	}
 	switch err.(type) {
 	case store.KeyError:
-		return KEY_ERROR
+		return KeyError
 	case store.ValueError:
-		return VALUE_ERROR
+		return ValueError
 	case store.DatabaseError:
-		return DATABASE_ERROR
+		return DatabaseError
 	case store.RequestError:
-		return REQUEST_ERROR
+		return RequestError
 	case store.UnknownCommand:
-		return UNKOWN_COMMAND
+		return UnkownCommand
 	}
-	return UNKNOWN_ERROR
+	return UnknownError
 }

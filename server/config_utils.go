@@ -6,59 +6,59 @@ import (
 	"reflect"
 )
 
-func LoadConfigFromFile(path string, obj interface{}, section string) error {
-	ini_config, err := goconfig.ReadConfigFile(path)
+func loadConfigFromFile(path string, obj interface{}, section string) error {
+	iniConfig, err := goconfig.ReadConfigFile(path)
 	if err != nil {
 		return err
 	}
 
 	config := reflect.ValueOf(obj).Elem()
-	config_type := config.Type()
+	configType := config.Type()
 
 	for i := 0; i < config.NumField(); i++ {
-		struct_field := config.Field(i)
-		field_tag := config_type.Field(i).Tag.Get("ini")
+		structField := config.Field(i)
+		fieldTag := configType.Field(i).Tag.Get("ini")
 		switch {
-		case struct_field.Type().Kind() == reflect.Bool:
-			config_value, err := ini_config.GetBool(section, field_tag)
+		case structField.Type().Kind() == reflect.Bool:
+			configValue, err := iniConfig.GetBool(section, fieldTag)
 			if err == nil {
-				struct_field.SetBool(config_value)
+				structField.SetBool(configValue)
 			}
-		case struct_field.Type().Kind() == reflect.String:
-			config_value, err := ini_config.GetString(section, field_tag)
+		case structField.Type().Kind() == reflect.String:
+			configValue, err := iniConfig.GetString(section, fieldTag)
 			if err == nil {
-				struct_field.SetString(config_value)
+				structField.SetString(configValue)
 			}
-		case struct_field.Type().Kind() == reflect.Int:
-			config_value, err := ini_config.GetInt64(section, field_tag)
+		case structField.Type().Kind() == reflect.Int:
+			configValue, err := iniConfig.GetInt64(section, fieldTag)
 			if err == nil {
-				struct_field.SetInt(config_value)
+				structField.SetInt(configValue)
 			}
 		}
 	}
 	return nil
 }
 
-func SetFlag(fs *flag.FlagSet, obj interface{}) error {
+func setFlag(fs *flag.FlagSet, obj interface{}) error {
 	config := reflect.ValueOf(obj).Elem()
-	config_type := config.Type()
+	configType := config.Type()
 	for i := 0; i < config.NumField(); i++ {
-		struct_field := config.Field(i)
-		short_flag := config_type.Field(i).Tag.Get("short")
-		description := config_type.Field(i).Tag.Get("description")
-		if short_flag == "" {
+		structField := config.Field(i)
+		shortFlag := configType.Field(i).Tag.Get("short")
+		description := configType.Field(i).Tag.Get("description")
+		if shortFlag == "" {
 			continue
 		}
 		switch {
-		case struct_field.Type().Kind() == reflect.Bool:
-			v := struct_field.Addr().Interface().(*bool)
-			fs.BoolVar(v, short_flag, struct_field.Bool(), description)
-		case struct_field.Type().Kind() == reflect.String:
-			v := struct_field.Addr().Interface().(*string)
-			fs.StringVar(v, short_flag, struct_field.String(), description)
-		case struct_field.Type().Kind() == reflect.Int:
-			v := struct_field.Addr().Interface().(*int)
-			fs.IntVar(v, short_flag, int(struct_field.Int()), description)
+		case structField.Type().Kind() == reflect.Bool:
+			v := structField.Addr().Interface().(*bool)
+			fs.BoolVar(v, shortFlag, structField.Bool(), description)
+		case structField.Type().Kind() == reflect.String:
+			v := structField.Addr().Interface().(*string)
+			fs.StringVar(v, shortFlag, structField.String(), description)
+		case structField.Type().Kind() == reflect.Int:
+			v := structField.Addr().Interface().(*int)
+			fs.IntVar(v, shortFlag, int(structField.Int()), description)
 		}
 	}
 	return nil

@@ -40,13 +40,13 @@ func setupEnv(t Tester) *Env {
 	if err != nil {
 		env.Fatalf("Error on connection %v", err)
 	}
-	dbUid := string(res[0])
-	env.Db = env.Container[dbUid]
+	dbUID := string(res[0])
+	env.Db = env.Container[dbUID]
 	if env.Db == nil {
-		env.Fatalf("No db for uid %v", dbUid)
+		env.Fatalf("No db for uid %v", dbUID)
 	}
-	if env.Db.status == DB_STATUS_UNMOUNTED {
-		env.Fatalf("Db is unmounted %s", dbUid)
+	if env.Db.status == statusUnmounted {
+		env.Fatalf("Db is unmounted %s", dbUID)
 	}
 	if err != nil {
 		env.Fatalf("Error when creating test db %v", err)
@@ -62,9 +62,9 @@ func (env *Env) destroy() {
 func fillNKeys(db *Db, n int) {
 	req := make([]string, n*3)
 	for i := 0; i < n*3; i += 3 {
-		req[i] = SIGNAL_BATCH_PUT
-		req[i+1] = fmt.Sprintf("key_%i", i)
-		req[i+2] = fmt.Sprintf("val_%i", i)
+		req[i] = SignalBatchPut
+		req[i+1] = fmt.Sprintf("key_%d", i)
+		req[i+2] = fmt.Sprintf("val_%d", i)
 	}
-	Batch(db, ToBytes(req...))
+	batch(db, ToBytes(req...))
 }

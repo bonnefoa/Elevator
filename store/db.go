@@ -3,31 +3,31 @@ package store
 import (
 	uuid "code.google.com/p/go-uuid/uuid"
 	"fmt"
-	l4g "github.com/alecthomas/log4go"
 	leveldb "github.com/jmhodges/levigo"
+	"github.com/golang/glog"
 )
 
-type DbResult struct {
+type dbResult struct {
 	Data [][]byte
 	Err error
 }
 
-type Db struct {
+type db struct {
 	Name         string          `json:"name"`
-	Uid          string          `json:"uid"`
+	UID          string          `json:"uid"`
 	Path         string          `json:"path"`
 	status       DbMountedStatus `json:"-"`
 	connector    *leveldb.DB     `json:"-"`
 	requestChan  chan *Request   `json:"-"`
-	responseChan chan *DbResult  `json:"-"`
+	responseChan chan *dbResult  `json:"-"`
 }
 
-func NewDb(db_name string, path string) *Db {
-	return &Db{
-		Name:         db_name,
+func newDb(dbName string, path string) *db {
+	return &db{
+		Name:         dbName,
 		Path:         path,
-		Uid:          uuid.New(),
-		status:       DB_STATUS_UNMOUNTED,
+		UID:          uuid.New(),
+		status:       statusUnmounted,
 		requestChan:  nil,
 		responseChan: nil,
 	}
@@ -35,7 +35,7 @@ func NewDb(db_name string, path string) *Db {
 
 // processRequest executes the received request command, and returns
 // the resulting response.
-func processRequest(db *Db, command string, args [][]byte) ([][]byte, error) {
+func processRequest(db *db, command string, args [][]byte) ([][]byte, error) {
 	f, ok := databaseComands[command]
 	if !ok {
 		err := RequestError( fmt.Errorf("Unknown command %s", command) )
@@ -49,13 +49,13 @@ func processRequest(db *Db, command string, args [][]byte) ([][]byte, error) {
 // for incoming requests to execute. Willingly
 // blocking on each Exec call received through the
 // channel in order to protect requests.
-func (db *Db) StartRoutine() {
+func (db *db) StartRoutine() {
 	for request := range db.requestChan {
 		res, err := processRequest(db, request.Command, request.Args)
 		if err != nil {
-			l4g.Error(err)
+			glog.Info(err)
 		}
-		result := &DbResult{
+		result := &dbResult{
 			Data:res,
 			Err:err,
 		}
@@ -63,43 +63,43 @@ func (db *Db) StartRoutine() {
 	}
 }
 
-// Mount sets the database status to DB_STATUS_MOUNTED
+// Mount sets the database status to statusMounted
 // and instantiates the according leveldb connector
-func (db *Db) Mount(options *leveldb.Options) (err error) {
-	if db.status == DB_STATUS_UNMOUNTED {
+func (db *db) Mount(options *leveldb.Options) (err error) {
+	if db.status == statusUnmounted {
 		db.connector, err = leveldb.Open(db.Path, options)
 		if err != nil {
 			return err
 		}
-		db.status = DB_STATUS_MOUNTED
+		db.status = statusMounted
 		db.requestChan = make(chan *Request, 100)
-		db.responseChan = make(chan *DbResult, 100)
+		db.responseChan = make(chan *dbResult, 100)
 		go db.StartRoutine()
 	} else {
 		error := fmt.Errorf("Database %s already mounted", db.Name)
-		l4g.Error(error)
+		glog.Error(error)
 		return error
 	}
-	l4g.Debug(func() string {
+	glog.Info(func() string {
 		return fmt.Sprintf("Database %s mounted", db.Name)
 	})
 	return nil
 }
 
-// Unmount sets the database status to DB_STATUS_UNMOUNTED
+// Unmount sets the database status to statusUnmounted
 // and deletes the according leveldb connector
-func (db *Db) Unmount() (err error) {
-	if db.status == DB_STATUS_MOUNTED {
+func (db *db) Unmount() (err error) {
+	if db.status == statusMounted {
 		db.connector.Close()
 		close(db.requestChan)
 		close(db.responseChan)
-		db.status = DB_STATUS_UNMOUNTED
+		db.status = statusUnmounted
 	} else {
         error := fmt.Errorf("Db: Database %s already unmounted", db.Name)
-		l4g.Error(error)
+		glog.Error(error)
 		return error
 	}
-	l4g.Debug(func() string {
+	glog.Info(func() string {
         return fmt.Sprintf("Db: Database %s unmounted", db.Name)
 	})
 	return nil

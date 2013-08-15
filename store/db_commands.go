@@ -6,17 +6,17 @@ import (
 	"strconv"
 )
 
-var databaseComands = map[string]func(*Db, [][]byte) ([][]byte, error){
-	DB_GET:    Get,
-	DB_MGET:   MGet,
-	DB_PUT:    Put,
-	DB_DELETE: Delete,
-	DB_RANGE:  Range,
-	DB_SLICE:  Slice,
-	DB_BATCH:  Batch,
+var databaseComands = map[string]func(*db, [][]byte) ([][]byte, error){
+	DbGet:    get,
+	DbMget:   mGet,
+	DbPut:    put,
+	DbDelete: dbDelete,
+	DbRange:  dbRange,
+	DbSlice:  slice,
+	DbBatch:  batch,
 }
 
-func Get(db *Db, args [][]byte) ([][]byte, error) {
+func get(db *db, args [][]byte) ([][]byte, error) {
 	key := args[0]
 	readOptions := leveldb.NewReadOptions()
 	value, err := db.connector.Get(readOptions, key)
@@ -28,7 +28,7 @@ func Get(db *Db, args [][]byte) ([][]byte, error) {
 	return [][]byte{value}, nil
 }
 
-func Put(db *Db, args [][]byte) ([][]byte, error) {
+func put(db *db, args [][]byte) ([][]byte, error) {
 	key := args[0]
 	value := args[1]
 	writeOptions := leveldb.NewWriteOptions()
@@ -39,7 +39,7 @@ func Put(db *Db, args [][]byte) ([][]byte, error) {
 	return nil, nil
 }
 
-func Delete(db *Db, args[][]byte) ([][]byte, error) {
+func dbDelete(db *db, args[][]byte) ([][]byte, error) {
 	key := args[0]
 	writeOptions := leveldb.NewWriteOptions()
 	err := db.connector.Delete(writeOptions, key)
@@ -49,29 +49,29 @@ func Delete(db *Db, args[][]byte) ([][]byte, error) {
 	return nil, nil
 }
 
-func MGet(db *Db, args [][]byte) ([][]byte, error) {
-	var data [][]byte = make([][]byte, len(args))
-	read_options := leveldb.NewReadOptions()
+func mGet(db *db, args [][]byte) ([][]byte, error) {
+	data := make([][]byte, len(args))
+	readOptions := leveldb.NewReadOptions()
 	snapshot := db.connector.NewSnapshot()
-	read_options.SetSnapshot(snapshot)
+	readOptions.SetSnapshot(snapshot)
 	for i, key := range args {
-		value, _ := db.connector.Get(read_options, key)
+		value, _ := db.connector.Get(readOptions, key)
 		data[i] = value
 	}
 	db.connector.ReleaseSnapshot(snapshot)
 	return data, nil
 }
 
-func Range(db *Db, args[][]byte) ([][]byte, error) {
+func dbRange(db *db, args[][]byte) ([][]byte, error) {
 	var data [][]byte
 	start := args[0]
 	end := args[1]
 
-	read_options := leveldb.NewReadOptions()
+	readOptions := leveldb.NewReadOptions()
 	snapshot := db.connector.NewSnapshot()
-	read_options.SetSnapshot(snapshot)
+	readOptions.SetSnapshot(snapshot)
 
-	it := db.connector.NewIterator(read_options)
+	it := db.connector.NewIterator(readOptions)
 	defer it.Close()
 	it.Seek(start)
 
@@ -85,17 +85,17 @@ func Range(db *Db, args[][]byte) ([][]byte, error) {
 	return data, nil
 }
 
-func Slice(db *Db, args [][]byte) ([][]byte, error) {
+func slice(db *db, args [][]byte) ([][]byte, error) {
 	var data [][]byte
 	start := args[0]
 	limit, err := strconv.Atoi(string(args[1]))
 	if err != nil {
 		return nil, RequestError(err)
 	}
-	read_options := leveldb.NewReadOptions()
+	readOptions := leveldb.NewReadOptions()
 	snapshot := db.connector.NewSnapshot()
-	read_options.SetSnapshot(snapshot)
-	it := db.connector.NewIterator(read_options)
+	readOptions.SetSnapshot(snapshot)
+	it := db.connector.NewIterator(readOptions)
 	defer it.Close()
 	it.Seek([]byte(start))
 	i := 0
@@ -110,14 +110,14 @@ func Slice(db *Db, args [][]byte) ([][]byte, error) {
 	return data, nil
 }
 
-func Batch(db *Db, args [][]byte) ([][]byte, error) {
-	var batch *leveldb.WriteBatch = leveldb.NewWriteBatch()
-	operations, err := BatchOperationsFromRequestArgs(args)
+func batch(db *db, args [][]byte) ([][]byte, error) {
+	batch := leveldb.NewWriteBatch()
+	operations, err := batchOperationsFromRequestArgs(args)
 	if err != nil {
 		return nil, err
 	}
 	for _, operation := range operations {
-		operation.ExecuteBatch(batch)
+		operation.executeBatch(batch)
 	}
 	wo := leveldb.NewWriteOptions()
 	err = db.connector.Write(wo, batch)
