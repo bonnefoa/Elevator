@@ -59,15 +59,15 @@ func setupEnv(t Tester) *Env {
 	var err error
 	env.Context, err = zmq.NewContext()
 	if err != nil {
-		env.Fatalf("Error on context creation", err)
+		env.Fatal("Error on context creation", err)
 	}
 	env.Socket, err = env.NewSocket(zmq.Req)
 	if err != nil {
-		env.Fatalf("Error on socket creation", err)
+		env.Fatal("Error on socket creation", err)
 	}
 	err = env.Socket.Connect(TestEndpoint)
 	if err != nil {
-		env.Fatalf("Error on socket connect", err)
+		env.Fatal("Error on socket connect", err)
 	}
 	env.config = getTestConf()
 	env.exitChannel = make(chan bool)
@@ -95,7 +95,7 @@ func (env *Env) destroy() {
 	env.CleanConfiguration()
 }
 
-func TestServer(t *testing.T) {
+func TestServerPutGet(t *testing.T) {
 	env := setupEnv(t)
 	defer env.destroy()
 	req := store.Request{Command: store.DbPut, Args: store.ToBytes("key", "val"), DbUID: env.uid}
@@ -146,7 +146,7 @@ func BenchmarkServerGet(b *testing.B) {
 		b.Fatalf("Error on db batch %q", response)
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < b.N*3; i+=3 {
 		request := store.Request{Command: store.DbGet,
 			Args: store.ToBytes(fmt.Sprintf("key_%d", i)), DbUID: env.uid}
 		request.SendRequest(env.Socket)
