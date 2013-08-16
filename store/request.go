@@ -49,7 +49,7 @@ func getRequestType(command string) requestType {
 // SendRequest pack request and send it via the given zero mq socket
 func (r *Request) SendRequest(socket *zmq.Socket) {
     if glog.V(1) {
-        glog.Info("Sending request ", r)
+        glog.Info("Request: Sending request ", r)
     }
 	buffer := bytes.Buffer{}
 	PackInto(r, &buffer)

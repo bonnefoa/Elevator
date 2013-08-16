@@ -3,6 +3,7 @@ package store
 import (
 	"testing"
 	"bytes"
+    "fmt"
 )
 
 func BenchmarkPackUnpack(b *testing.B) {
@@ -46,3 +47,19 @@ func TestPackUnpackRequest(t *testing.T) {
 	}
 }
 
+func TestPackUnpackBigRequest(t *testing.T) {
+	var buffer bytes.Buffer
+	var resultRequest Request
+
+    args := make([]string, 90000)
+    for i := range args {
+        args[i] = fmt.Sprintf("key_%d", i)
+    }
+	startRequest := Request{Command: DbConnect, Args: ToBytes(args...)}
+	PackInto(startRequest, &buffer)
+
+	UnpackFrom(&resultRequest, &buffer)
+	if resultRequest.Command != DbConnect {
+		t.Fatalf("Expected request to be DbConnect, got %q", resultRequest)
+	}
+}

@@ -124,6 +124,20 @@ func TestServerPutGet(t *testing.T) {
 	}
 }
 
+func TestBigPut(t *testing.T) {
+	env := setupEnv(t)
+	defer env.destroy()
+
+	args := getMPut(30000)
+	req := store.Request{Command: store.DbBatch, Args: args, DbUID: env.uid}
+
+	req.SendRequest(env.Socket)
+	response := ReceiveResponse(env.Socket)
+	if response.Status != Success {
+		t.Fatalf("Error on db put %q", response)
+	}
+}
+
 func getMPut(n int) [][]byte {
 	args := make([]string, n*3)
 	for i := 0; i < n*3; i += 3 {
