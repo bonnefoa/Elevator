@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	zmq "github.com/bonnefoa/go-zeromq"
+	"github.com/golang/glog"
 	store "github.com/oleiade/Elevator/store"
 	"log"
-	"github.com/golang/glog"
-    "sync"
+	"sync"
 )
 
 const monitorInproc = "inproc://close"
@@ -19,7 +19,7 @@ type serverState struct {
 	responseSocket *zmq.Socket
 	dbStore        *store.DbStore
 	*config
-	recvChannel chan [][]byte
+	recvChannel chan *zmq.MessageMultipart
 	exitChannel chan bool
 }
 
@@ -80,9 +80,9 @@ func ReceiveResponse(socket *zmq.Socket) *Response {
 func (s *serverState) LoopPolling() {
 	// Poll for events on the zmq socket
 	// and send incoming requests in the recv channel
-    pollReceive := &zmq.PollItem{Socket: s.receiveSocket, Events: zmq.Pollin, REvents:0}
-    pollResponse := &zmq.PollItem{Socket: s.responseSocket, Events: zmq.Pollin, REvents:0}
-	pollers := zmq.PollItems{ pollReceive, pollResponse }
+	pollReceive := &zmq.PollItem{Socket: s.receiveSocket, Events: zmq.Pollin}
+	pollResponse := &zmq.PollItem{Socket: s.responseSocket, Events: zmq.Pollin}
+	pollers := zmq.PollItems{pollReceive, pollResponse}
 	for {
 		_, err := pollers.Poll(-1)
 		if err != nil {
@@ -95,8 +95,7 @@ func (s *serverState) LoopPolling() {
 				glog.Warning("Error on receive ", err)
 				continue
 			}
-			s.recvChannel <- parts.Data
-			parts.Close()
+			s.recvChannel <- parts
 		}
 		if pollers[1].REvents&zmq.Pollin > 0 {
 			parts, err := s.responseSocket.RecvMultipart(0)
@@ -118,7 +117,7 @@ func (s *serverState) LoopPolling() {
 func ListenAndServe(config *config, exitChannel chan bool) {
 	glog.Info(fmt.Sprintf("Elevator started on %s", config.Endpoint))
 	serverState := &serverState{config: config,
-        recvChannel: make(chan [][]byte, 100),
+		recvChannel: make(chan *zmq.MessageMultipart, 100),
 		exitChannel: exitChannel}
 	err := serverState.initializeServer()
 	if err != nil {
@@ -127,17 +126,17 @@ func ListenAndServe(config *config, exitChannel chan bool) {
 	workerExitChannel := make(chan bool, 0)
 	worker := worker{serverState.dbStore, nil, serverState.Context,
 		serverState.recvChannel, workerExitChannel}
-    wg := &sync.WaitGroup{}
+	wg := &sync.WaitGroup{}
 	for i := 0; i < 1; i++ {
 		go worker.startWorker(wg)
 	}
-    wg.Add(1)
+	wg.Add(1)
 	go serverState.LoopPolling()
 	<-exitChannel
 	glog.Info("Exiting server")
 	// Closing workers
 	close(workerExitChannel)
-    wg.Wait()
+	wg.Wait()
 	// Closing sockets and context
 	serverState.closeServer()
 }

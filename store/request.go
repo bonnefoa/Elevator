@@ -19,10 +19,10 @@ const (
 // Request allows to query a specific db if a DbUID is given
 // You can also query the dbstore to create or drop a db
 type Request struct {
-	DbUID   string
-	Command string
-	Args    [][]byte
-	ID      [][]byte
+	DbUID       string
+	Command     string
+	Args        [][]byte
+	ID          [][]byte
 	requestType requestType
 }
 
@@ -48,9 +48,9 @@ func getRequestType(command string) requestType {
 
 // SendRequest pack request and send it via the given zero mq socket
 func (r *Request) SendRequest(socket *zmq.Socket) {
-    if glog.V(1) {
-        glog.Info("Request: Sending request ", r)
-    }
+	if glog.V(1) {
+		glog.Info("Request: Sending request ", r)
+	}
 	buffer := bytes.Buffer{}
 	PackInto(r, &buffer)
 	socket.SendMultipart([][]byte{buffer.Bytes()}, 0)
@@ -65,9 +65,6 @@ func PartsToRequest(parts [][]byte) (*Request, error) {
 	msg := bytes.NewBuffer(rawMsg)
 	// Deserialize request message and fulfill request
 	// obj with it's content
-    if glog.V(1) {
-        glog.Info("Unpacking message %s", msg)
-    }
 	UnpackFrom(request, msg)
 	request.ID = id
 

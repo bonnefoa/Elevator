@@ -3,9 +3,9 @@ package server
 import (
 	"bytes"
 	zmq "github.com/bonnefoa/go-zeromq"
-	store "github.com/oleiade/Elevator/store"
 	"github.com/golang/glog"
-    "sync"
+	store "github.com/oleiade/Elevator/store"
+	"sync"
 )
 
 // worker accepts incoming request from server and
@@ -14,7 +14,7 @@ type worker struct {
 	*store.DbStore
 	*zmq.Socket
 	*zmq.Context
-	partsChannel chan [][]byte
+	partsChannel chan *zmq.MessageMultipart
 	exitChannel  chan bool
 }
 
@@ -46,8 +46,9 @@ func (w *worker) startResponseSocket() error {
 	return nil
 }
 
-func (w *worker) processRequest(parts [][]byte) {
-	request, err := store.PartsToRequest(parts)
+func (w *worker) processRequest(msg *zmq.MessageMultipart) {
+	request, err := store.PartsToRequest(msg.Data)
+	msg.Close()
 	if err != nil {
 		glog.Info("Worker: Error on message reading %s", err)
 		w.sendErrorResponse(request.ID, err)
@@ -68,7 +69,7 @@ func (w *worker) processRequest(parts [][]byte) {
 // destroyWorker clean up
 func (w *worker) destroyWorker(wg *sync.WaitGroup) {
 	w.Socket.Close()
-    wg.Done()
+	wg.Done()
 }
 
 // startWorker bind response socket and
@@ -78,11 +79,11 @@ func (w worker) startWorker(wg *sync.WaitGroup) {
 	defer w.destroyWorker(wg)
 	for {
 		select {
-		case parts := <-w.partsChannel:
-			if len(parts) < 3 {
+		case msg := <-w.partsChannel:
+			if len(msg.Data) < 3 {
 				continue
 			}
-			w.processRequest(parts)
+			w.processRequest(msg)
 		case <-w.exitChannel:
 			glog.Info("Received exit signal, destroying worker")
 			return
