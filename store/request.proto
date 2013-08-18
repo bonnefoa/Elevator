@@ -1,0 +1,81 @@
+package store;
+
+message StoreRequest {
+    optional string dbName = 1;
+    enum Command {
+        CONNECT = 0;
+        CREATE = 1;
+        DROP = 2;
+        LIST = 3;
+        REPAIR = 4;
+    }
+    required Command command = 2;
+}
+
+message GetRequest {
+    required bytes key = 1;
+}
+
+message DeleteRequest {
+    required bytes key = 1;
+}
+
+message PutRequest {
+    required bytes key = 1;
+    required bytes value = 2;
+}
+
+message RangeRequest {
+    required bytes start = 1;
+    required bytes end = 2;
+}
+
+message SliceRequest {
+    required bytes start = 1;
+    required int32 limit = 2;
+}
+
+message MgetRequest {
+    repeated bytes keys = 1;
+}
+
+message BatchPut {
+    required bytes key = 1;
+    required bytes value = 2;
+}
+
+message BatchDelete {
+    required bytes key = 1;
+}
+
+message BatchRequest {
+    repeated BatchPut puts = 1;
+    repeated BatchDelete deletes = 2;
+}
+
+message DbResponse {
+    repeated bytes values = 1;
+    required int32 status = 2;
+}
+
+message DbRequest {
+    optional string dbName = 1;
+    enum Command {
+        GET = 0;
+        PUT = 1;
+        DELETE = 2;
+        RANGE = 3;
+        SLICE = 4;
+        BATCH = 5;
+        MGET = 6;
+        PING = 7;
+    }
+    required Command command = 2;
+    optional GetRequest get = 3;
+    optional PutRequest put = 4;
+    optional RangeRequest range = 5;
+    optional SliceRequest slice = 6;
+    optional MgetRequest mget = 7;
+    optional BatchRequest batch = 8;
+    optional DeleteRequest delete = 9;
+}
