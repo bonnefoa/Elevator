@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"fmt"
 	zmq "github.com/bonnefoa/go-zeromq"
 	"github.com/golang/glog"
@@ -10,16 +9,14 @@ import (
 	"sync"
 )
 
-const monitorInproc = "inproc://close"
 const responseInproc = "inproc://response"
 
 type serverState struct {
 	*zmq.Context
-	receiveSocket  *zmq.Socket
-	responseSocket *zmq.Socket
+	frontendSocket *zmq.Socket
+	backendSocket  *zmq.Socket
 	dbStore        *store.DbStore
 	*config
-	recvChannel chan *zmq.MessageMultipart
 	exitChannel chan bool
 }
 
@@ -27,14 +24,11 @@ type serverState struct {
 // to listen on
 func (s *serverState) initializeServer() (err error) {
 	s.Context, err = zmq.NewContext()
+	s.frontendSocket, err = createAndBindSocket(s.Context, zmq.Router, s.Endpoint)
 	if err != nil {
 		return
 	}
-	s.receiveSocket, err = s.NewSocket(zmq.Router)
-	if err != nil {
-		return
-	}
-	err = s.receiveSocket.Bind(s.Endpoint)
+	s.backendSocket, err = createAndBindSocket(s.Context, zmq.Dealer, responseInproc)
 	if err != nil {
 		return
 	}
@@ -42,71 +36,67 @@ func (s *serverState) initializeServer() (err error) {
 	if err != nil {
 		return
 	}
-	s.responseSocket, err = s.NewSocket(zmq.Pull)
-	if err != nil {
-		return
-	}
-	err = s.responseSocket.Bind(responseInproc)
 	return
 }
 
 func (s *serverState) closeServer() {
-	glog.Info("Unmounting databases")
-	s.dbStore.UnmountAll()
-	glog.Info("Closing receive socket")
-	s.receiveSocket.Close()
-	glog.Info("Closing response socket")
-	s.responseSocket.Close()
-	glog.Info("Closing context")
-	s.Context.Destroy()
-	glog.Info("Closing receive and exit channel")
-	close(s.recvChannel)
-	close(s.exitChannel)
-}
-
-// ReceiveResponse fetch an incoming response from the socket
-// The message is expected to be single frame
-func ReceiveResponse(socket *zmq.Socket) *Response {
-	response := &Response{}
-	parts, err := socket.RecvMultipart(0)
-	if err != nil {
-		glog.Warning("Error on response receive ", err)
+	if glog.V(4) {
+		glog.Info("Unmounting databases")
 	}
-	store.UnpackFrom(response, bytes.NewBuffer(parts.Data[0]))
-	parts.Close()
-	return response
+	s.dbStore.UnmountAll()
+	if glog.V(4) {
+		glog.Info("Closing pool socket")
+	}
+	if glog.V(4) {
+		glog.Info("Closing receive socket")
+	}
+	s.frontendSocket.Close()
+	if glog.V(4) {
+		glog.Info("Closing backend socket")
+	}
+	s.backendSocket.Close()
+	if glog.V(4) {
+		glog.Info("Closing context")
+	}
+	s.Context.Destroy()
+	if glog.V(4) {
+		glog.Info("Closing receive and exit channel")
+	}
 }
 
-func (s *serverState) LoopPolling() {
+func (s *serverState) LoopPolling() (err error) {
 	// Poll for events on the zmq socket
-	// and send incoming requests in the recv channel
-	pollReceive := &zmq.PollItem{Socket: s.receiveSocket, Events: zmq.Pollin}
-	pollResponse := &zmq.PollItem{Socket: s.responseSocket, Events: zmq.Pollin}
-	pollers := zmq.PollItems{pollReceive, pollResponse}
+	// and send incoming requests in the backend
+	pollFrontend := &zmq.PollItem{Socket: s.frontendSocket, Events: zmq.Pollin}
+	pollBackend := &zmq.PollItem{Socket: s.backendSocket, Events: zmq.Pollin}
+	pollers := zmq.PollItems{pollFrontend, pollBackend}
 	for {
-		_, err := pollers.Poll(-1)
+		_, err = pollers.Poll(-1)
 		if err != nil {
-			glog.Info("Exiting loop polling")
-			return
+            if glog.V(2) {
+                glog.Info("Exiting loop polling")
+            }
+			return err
 		}
 		if pollers[0].REvents&zmq.Pollin > 0 {
-			parts, err := s.receiveSocket.RecvMultipart(0)
+			msg, err := s.frontendSocket.RecvMultipart(0)
 			if err != nil {
-				glog.Warning("Error on receive ", err)
+				glog.Warning("Error on receiving ", err)
 				continue
 			}
-			s.recvChannel <- parts
+			s.backendSocket.SendMultipart(msg.Data, zmq.DontWait)
 		}
 		if pollers[1].REvents&zmq.Pollin > 0 {
-			parts, err := s.responseSocket.RecvMultipart(0)
+			msg, err := s.backendSocket.RecvMultipart(0)
 			if err != nil {
-				glog.Warning("Error on response receive ", err)
+				glog.Warning("Error on receiving from backend ", err)
 				continue
 			}
-			err = s.receiveSocket.SendMultipart(parts.Data, 0)
-			parts.Close()
+			err = s.frontendSocket.SendMultipart(msg.Data, zmq.DontWait)
+			msg.Close()
 			if err != nil {
-				glog.Warning("Error on response send ", err)
+				glog.Warning("Error on sending to frontend ", err)
+				continue
 			}
 		}
 	}
@@ -115,28 +105,22 @@ func (s *serverState) LoopPolling() {
 // ListenAndServe starts listening socket, initialize worker
 // and loop until an exit signal is received
 func ListenAndServe(config *config, exitChannel chan bool) {
-	glog.Info(fmt.Sprintf("Elevator started on %s", config.Endpoint))
 	serverState := &serverState{config: config,
-		recvChannel: make(chan *zmq.MessageMultipart, 100),
 		exitChannel: exitChannel}
 	err := serverState.initializeServer()
 	if err != nil {
 		log.Fatal(err)
 	}
-	workerExitChannel := make(chan bool, 0)
-	worker := worker{serverState.dbStore, nil, serverState.Context,
-		serverState.recvChannel, workerExitChannel}
+	worker := worker{DbStore: serverState.dbStore, Context: serverState.Context}
 	wg := &sync.WaitGroup{}
-	for i := 0; i < 1; i++ {
+	for i := 0; i < config.NumWorkers; i++ {
 		go worker.startWorker(wg)
 	}
-	wg.Add(1)
+	wg.Add(config.NumWorkers)
 	go serverState.LoopPolling()
+	glog.Info(fmt.Sprintf("Elevator started on %s", config.Endpoint))
 	<-exitChannel
-	glog.Info("Exiting server")
-	// Closing workers
-	close(workerExitChannel)
-	wg.Wait()
-	// Closing sockets and context
 	serverState.closeServer()
+	wg.Wait()
+	close(exitChannel)
 }

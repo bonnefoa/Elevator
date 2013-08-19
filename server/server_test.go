@@ -1,6 +1,7 @@
 package server
 
 import (
+	"code.google.com/p/goprotobuf/proto"
 	"fmt"
 	zmq "github.com/bonnefoa/go-zeromq"
 	store "github.com/oleiade/Elevator/store"
@@ -11,9 +12,15 @@ import (
 	"testing"
 )
 
+var (
+	key1 = []byte("key1")
+	key2 = []byte("key2")
+	val1 = []byte("val1")
+)
+
 const (
-	TestDb       = "test_db"
 	TestEndpoint = "tcp://127.0.0.1:4141"
+	TestDb       = "test_db"
 )
 
 type Tester interface {
@@ -25,7 +32,6 @@ type Env struct {
 	*zmq.Context
 	*zmq.Socket
 	Tester
-	uid string
 	*config
 	exitChannel chan bool
 }
@@ -71,21 +77,20 @@ func setupEnv(t Tester) *Env {
 	}
 	env.config = getTestConf()
 	env.exitChannel = make(chan bool)
-	go ListenAndServe(env.config, env.exitChannel)
-	req := store.Request{Command: store.DbCreate, Args: store.ToBytes(TestDb)}
-	req.SendRequest(env.Socket)
-	response := ReceiveResponse(env.Socket)
-	if response.Status != Success {
+	go ListenAndServe(env.config, env.exitChannel, 5)
+
+	// Create base
+	createReq := store.NewStoreRequest(TestDb, store.StoreRequest_CREATE)
+	SendRequest(&createReq, env.Socket)
+	response, err := ReceiveResponse(env.Socket)
+	if err != nil {
+		t.Fatalf("Error on send create db request %q", err)
+	}
+	if *response.Status != Response_SUCCESS {
 		env.Fatalf("Error on db creation %v (test conf was %q)",
 			response, env.config)
 	}
-	req = store.Request{Command: store.DbConnect, Args: store.ToBytes(TestDb)}
-	req.SendRequest(env.Socket)
-	response = ReceiveResponse(env.Socket)
-	if response.Status != Success {
-		env.Fatalf("Error on db connection %q", response)
-	}
-	env.uid = string(response.Data[0])
+
 	return env
 }
 
@@ -98,28 +103,44 @@ func (env *Env) destroy() {
 func TestServerPutGet(t *testing.T) {
 	env := setupEnv(t)
 	defer env.destroy()
-	req := store.Request{Command: store.DbPut, Args: store.ToBytes("key", "val"), DbUID: env.uid}
-	req.SendRequest(env.Socket)
-	response := ReceiveResponse(env.Socket)
-	if response.Status != Success {
+	// Test put
+	dbReq := store.NewPutRequest(TestDb, key1, val1)
+	err := SendDbRequest(&dbReq, env.Socket)
+	if err != nil {
+		t.Fatalf("Error on send get request %q", err)
+	}
+	response, err := ReceiveResponse(env.Socket)
+	if err != nil {
+		t.Fatalf("Error on receive get request %q", err)
+	}
+	if *response.Status != Response_SUCCESS {
 		t.Fatalf("Error on db put %q", response)
 	}
-	req = store.Request{Command: store.DbGet,
-		Args: store.ToBytes("key"), DbUID: env.uid}
-	req.SendRequest(env.Socket)
-	response = ReceiveResponse(env.Socket)
-	if response.Status != Success {
+
+	// Test get
+	dbReq = store.NewGetRequest(TestDb, key1)
+	SendDbRequest(&dbReq, env.Socket)
+	response, err = ReceiveResponse(env.Socket)
+	if err != nil {
+		t.Fatal("Error on get response receive", err)
+	}
+	if *response.Status != Response_SUCCESS {
 		t.Fatalf("Error on db get %q", response)
 	}
-	expectedValue := store.ToBytes("val")
+	expectedValue := [][]byte{val1}
 	if !reflect.DeepEqual(response.Data, expectedValue) {
-		t.Fatalf("Expected to fetch 'key' value %q, got %q", expectedValue, response.Data[0])
+		t.Fatalf("Expected to fetch 'key' value %q, got %q",
+			expectedValue, response.Data[0])
 	}
 
-	req = store.Request{Command: store.DbGet, Args: store.ToBytes("key_2"), DbUID: env.uid}
-	req.SendRequest(env.Socket)
-	response = ReceiveResponse(env.Socket)
-	if response.Status != KeyError {
+	// Test get on unknown key
+	dbReq = store.NewGetRequest(TestDb, key2)
+	SendDbRequest(&dbReq, env.Socket)
+	response, err = ReceiveResponse(env.Socket)
+	if err != nil {
+		t.Fatal("Error on get response receive", err)
+	}
+	if *response.Status != Response_KEY_ERROR {
 		t.Fatalf("Expected key error, got %q", response.Status)
 	}
 }
@@ -128,43 +149,60 @@ func TestBigPut(t *testing.T) {
 	env := setupEnv(t)
 	defer env.destroy()
 
-	args := getMPut(30000)
-	req := store.Request{Command: store.DbBatch, Args: args, DbUID: env.uid}
+	putKeys, putValues := getMPut(30000)
+	req := store.NewBatchRequest(TestDb, putKeys, putValues, nil)
 
-	req.SendRequest(env.Socket)
-	response := ReceiveResponse(env.Socket)
-	if response.Status != Success {
+	SendDbRequest(&req, env.Socket)
+	response, err := ReceiveResponse(env.Socket)
+	if err != nil {
+		t.Fatal("Error on put request receive", err)
+	}
+	if *response.Status != Response_SUCCESS {
 		t.Fatalf("Error on db put %q", response)
 	}
 }
 
-func getMPut(n int) [][]byte {
-	args := make([]string, n*3)
-	for i := 0; i < n*3; i += 3 {
-		args[i] = store.SignalBatchPut
-		args[i+1] = fmt.Sprintf("key_%d", i)
-		args[i+2] = fmt.Sprintf("val_%d", i)
+func getMPut(n int) ([][]byte, [][]byte) {
+	putKeys := make([][]byte, n)
+	putValues := make([][]byte, n)
+	for i := 0; i < n; i++ {
+		putKeys[i] = []byte(fmt.Sprintf("key_%d", i))
+		putValues[i] = []byte(fmt.Sprintf("val_%d", i))
 	}
-	return store.ToBytes(args...)
+	return putKeys, putValues
 }
 
 func BenchmarkServerGet(b *testing.B) {
 	env := setupEnv(b)
 	defer env.destroy()
 
-	args := getMPut(b.N)
-	req := store.Request{Command: store.DbBatch, Args: args, DbUID: env.uid}
-	req.SendRequest(env.Socket)
-	response := ReceiveResponse(env.Socket)
-	if response.Status != Success {
+	putKeys, putValues := getMPut(b.N)
+	req := store.NewBatchRequest(TestDb, putKeys, putValues, nil)
+	SendDbRequest(&req, env.Socket)
+	response, _ := ReceiveResponse(env.Socket)
+	if *response.Status != Response_SUCCESS {
 		b.Fatalf("Error on db batch %q", response)
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N*3; i+=3 {
-		request := store.Request{Command: store.DbGet,
-			Args: store.ToBytes(fmt.Sprintf("key_%d", i)), DbUID: env.uid}
-		request.SendRequest(env.Socket)
-		response = ReceiveResponse(env.Socket)
+	for i := 0; i < b.N; i++ {
+		key := []byte(fmt.Sprintf("key_%d", i))
+		req = store.NewGetRequest(TestDb, key)
+		SendDbRequest(&req, env.Socket)
+		response, _ = ReceiveResponse(env.Socket)
+	}
+	b.StopTimer()
+}
+
+func BenchmarkServerList(b *testing.B) {
+	env := setupEnv(b)
+	defer env.destroy()
+
+	r := store.NewStoreRequest("default", store.StoreRequest_LIST)
+	data, _ := proto.Marshal(&r)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		env.Socket.SendMultipart([][]byte{data}, 0)
+		env.Socket.Recv(0)
 	}
 	b.StopTimer()
 }

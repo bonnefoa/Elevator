@@ -1,7 +1,7 @@
 package server
 
 import (
-	"bytes"
+	"code.google.com/p/goprotobuf/proto"
 	zmq "github.com/bonnefoa/go-zeromq"
 	"github.com/golang/glog"
 	store "github.com/oleiade/Elevator/store"
@@ -12,81 +12,73 @@ import (
 // relay them to the dbstore
 type worker struct {
 	*store.DbStore
-	*zmq.Socket
+	repSocket *zmq.Socket
 	*zmq.Context
 	partsChannel chan *zmq.MessageMultipart
-	exitChannel  chan bool
 }
 
 // sendResponse sends request result throught the
 // push socket of the worker to the router
-func (w *worker) sendResponse(response *Response) {
-	var responseBuf bytes.Buffer
-	store.PackInto(response, &responseBuf)
-	parts := response.id
-	parts = append(parts, responseBuf.Bytes())
-	w.Socket.SendMultipart(parts, 0)
-}
-
-func (w *worker) sendErrorResponse(id [][]byte, err error) {
-	response := responseFromError(id, err)
-	w.sendResponse(response)
-}
-
-func (w *worker) startResponseSocket() error {
-	socket, err := w.NewSocket(zmq.Push)
+func (w *worker) sendResponse(response *Response) error {
+	data, err := proto.Marshal(response)
 	if err != nil {
 		return err
 	}
-	err = socket.Connect(responseInproc)
-	if err != nil {
-		return err
+	if glog.V(8) {
+		glog.Infof("Sending response %v", data)
 	}
-	w.Socket = socket
-	return nil
+	return w.repSocket.Send(data, 0)
 }
 
-func (w *worker) processRequest(msg *zmq.MessageMultipart) {
-	request, err := store.PartsToRequest(msg.Data)
+func (w *worker) processRequest(msg *zmq.MessagePart) *Response {
+	request := &store.Request{}
+	err := proto.Unmarshal(msg.Data, request)
 	msg.Close()
 	if err != nil {
 		glog.Info("Worker: Error on message reading %s", err)
-		w.sendErrorResponse(request.ID, err)
-		return
+		return responseFromError(err)
 	}
 	res, err := w.DbStore.HandleRequest(request)
 	if err != nil {
-		w.sendErrorResponse(request.ID, err)
+		return responseFromError(err)
 	}
+	status := Response_SUCCESS
+	errMsg := ""
 	response := &Response{
-		Status: Success,
-		Data:   res,
-		id:     request.ID,
+		Status:   &status,
+		Data:     res,
+		ErrorMsg: &errMsg,
 	}
-	w.sendResponse(response)
+    return response
 }
 
 // destroyWorker clean up
 func (w *worker) destroyWorker(wg *sync.WaitGroup) {
-	w.Socket.Close()
+	w.repSocket.Close()
 	wg.Done()
 }
 
 // startWorker bind response socket and
 // wait for router requests
 func (w worker) startWorker(wg *sync.WaitGroup) {
-	w.startResponseSocket()
+	var err error
+	w.repSocket, err = createAndConnectSocket(w.Context, zmq.Rep, responseInproc)
+	if err != nil {
+		glog.Error("Error on starting worker ", err)
+	}
 	defer w.destroyWorker(wg)
 	for {
-		select {
-		case msg := <-w.partsChannel:
-			if len(msg.Data) < 3 {
-				continue
+		msg, err := w.repSocket.Recv(0)
+		if err != nil {
+			if glog.V(2) {
+				glog.Warning("Error on receive ", err)
 			}
-			w.processRequest(msg)
-		case <-w.exitChannel:
-			glog.Info("Received exit signal, destroying worker")
 			return
 		}
+        response := w.processRequest(msg)
+        err = w.sendResponse(response)
+        if err != nil {
+            glog.Warning("Error when sending response", err)
+        }
 	}
 }
