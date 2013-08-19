@@ -1,11 +1,8 @@
 package store
 
 import (
-	"log"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 )
 
 // ToBytes convert strings passed as argument to a slice of bytes
@@ -42,18 +39,4 @@ func btoi(b bool) int {
 		return 1
 	}
 	return 0
-}
-
-// SetupExitChannel creates a channel which received a value on
-// SIGTERM
-func SetupExitChannel() chan bool {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
-	exitChannel := make(chan bool)
-	go func() {
-		sig := <-c
-		log.Printf("Received signal '%v', exiting\n", sig)
-		exitChannel <- true
-	}()
-	return exitChannel
 }

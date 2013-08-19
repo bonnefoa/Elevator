@@ -16,7 +16,7 @@ type serverState struct {
 	frontendSocket *zmq.Socket
 	backendSocket  *zmq.Socket
 	dbStore        *store.DbStore
-	*config
+	*Config
 	exitChannel chan bool
 }
 
@@ -104,8 +104,8 @@ func (s *serverState) LoopPolling() (err error) {
 
 // ListenAndServe starts listening socket, initialize worker
 // and loop until an exit signal is received
-func ListenAndServe(config *config, exitChannel chan bool) {
-	serverState := &serverState{config: config,
+func ListenAndServe(config *Config, exitChannel chan bool) {
+	serverState := &serverState{Config: config,
 		exitChannel: exitChannel}
 	err := serverState.initializeServer()
 	if err != nil {

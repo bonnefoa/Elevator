@@ -32,7 +32,7 @@ type Env struct {
 	*zmq.Context
 	*zmq.Socket
 	Tester
-	*config
+	*Config
 	exitChannel chan bool
 }
 
@@ -41,14 +41,9 @@ func cleanConfTemp(c *store.StoreConfig) {
 	os.RemoveAll(c.StoragePath)
 }
 
-func getTestConf() *config {
+func getTestConf() *Config {
 	tempDir, _ := ioutil.TempDir("/tmp", "elevator")
 	config := newConfig()
-	logConfig := &logConfiguration{
-		LogFile:  path.Join(tempDir, "elevator.log"),
-		LogLevel: "DEBUG",
-	}
-	configureLogger(logConfig)
 
 	config.StoreConfig.CoreConfig.StorePath = path.Join(tempDir, "store")
 	config.StoreConfig.CoreConfig.StoragePath = tempDir
@@ -56,7 +51,6 @@ func getTestConf() *config {
 	config.serverConfig.Endpoint = TestEndpoint
 	config.serverConfig.Pidfile = path.Join(tempDir, "elevator.pid")
 
-	config.logConfiguration = logConfig
 	return config
 }
 
@@ -75,9 +69,9 @@ func setupEnv(t Tester) *Env {
 	if err != nil {
 		env.Fatal("Error on socket connect", err)
 	}
-	env.config = getTestConf()
+	env.Config = getTestConf()
 	env.exitChannel = make(chan bool)
-	go ListenAndServe(env.config, env.exitChannel)
+	go ListenAndServe(env.Config, env.exitChannel)
 
 	// Create base
 	createReq := store.NewStoreRequest(TestDb, store.StoreRequest_CREATE)
@@ -88,7 +82,7 @@ func setupEnv(t Tester) *Env {
 	}
 	if *response.Status != Response_SUCCESS {
 		env.Fatalf("Error on db creation %v (test conf was %q)",
-			response, env.config)
+			response, env.Config)
 	}
 
 	return env

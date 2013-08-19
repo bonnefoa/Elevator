@@ -3,7 +3,11 @@ package server
 import (
 	"code.google.com/p/goprotobuf/proto"
 	zmq "github.com/bonnefoa/go-zeromq"
+	"github.com/golang/glog"
 	store "github.com/oleiade/Elevator/store"
+	"os/signal"
+	"syscall"
+    "os"
 )
 
 // SendRequest marshal and transmit request throught given zmq socket
@@ -69,4 +73,18 @@ func ReceiveResponse(socket *zmq.Socket) (*Response, error) {
 	}
 	msg.Close()
 	return response, err
+}
+
+// SetupExitChannel creates a channel which received a value on
+// SIGTERM
+func SetupExitChannel() chan bool {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
+	exitChannel := make(chan bool)
+	go func() {
+		sig := <-c
+		glog.Infof("Received signal '%v', exiting\n", sig)
+		exitChannel <- true
+	}()
+	return exitChannel
 }

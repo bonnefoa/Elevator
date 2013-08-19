@@ -2,46 +2,44 @@ package main
 
 import (
 	"flag"
-	elevator "github.com/oleiade/Elevator"
-	"log"
+	"github.com/golang/glog"
+	"github.com/oleiade/Elevator/server"
 	"os"
 )
 
-func checkErr(config *elevator.Config, fs *flag.FlagSet, err error) {
+func checkErr(config *server.Config, fs *flag.FlagSet, err error) {
 	if err != nil {
 		fs.PrintDefaults()
 		if config != nil {
-			log.Printf("Current config is %s", config)
+			glog.Infof("Current config is %s\n", config)
 		}
-		log.Fatal(err)
+		glog.Error(err)
 	}
 }
 
 func main() {
 	fs := flag.NewFlagSet("Elevator flag set", flag.ContinueOnError)
 
-	conf_file := fs.String("c",
-		elevator.DEFAULT_CONFIG_FILE,
+	confFile := fs.String("c",
+		server.DefaultConfigFile,
 		"Specifies config file path")
 	err := fs.Parse(os.Args[1:])
 	checkErr(nil, fs, err)
 
-	config, err := elevator.ConfFromFile(*conf_file)
-	elevator.SetFlag(fs, config.CoreConfig)
-	elevator.SetFlag(fs, config.LogConfiguration)
+	config, err := server.ConfFromFile(*confFile)
+	server.SetFlag(fs, config.CoreConfig)
 	checkErr(config, fs, err)
 
 	// Reparse to make command line arguments override conf file
 	err = fs.Parse(os.Args[:1])
 	checkErr(config, fs, err)
 
-	err = elevator.ConfigureLogger(config.LogConfiguration)
 	checkErr(config, fs, err)
-	exitChannel := elevator.SetupExitChannel()
+	exitChannel := server.SetupExitChannel()
 
 	if config.Daemon {
-		elevator.Daemon(config, exitChannel)
+		server.Daemon(config, exitChannel)
 	} else {
-		elevator.ListenAndServe(config, exitChannel)
+		server.ListenAndServe(config, exitChannel)
 	}
 }

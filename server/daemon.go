@@ -2,8 +2,8 @@ package server
 
 import (
 	"fmt"
+	"github.com/golang/glog"
 	"io/ioutil"
-	"log"
 	"os"
 	"strconv"
 )
@@ -12,7 +12,8 @@ func createPidFile(pidfile string) error {
 	if pidString, err := ioutil.ReadFile(pidfile); err == nil {
 		pid, err := strconv.Atoi(string(pidString))
 		if err == nil {
-			if _, err := os.Stat(fmt.Sprintf("/proc/%d/", pid)); err == nil {
+			path := fmt.Sprintf("/proc/%d/", pid)
+			if _, err := os.Stat(path); err == nil {
 				return fmt.Errorf("pid file found, ensure elevator is not running or delete %s", pidfile)
 			}
 		}
@@ -20,7 +21,7 @@ func createPidFile(pidfile string) error {
 
 	file, err := os.Create(pidfile)
 	if err != nil {
-		log.Println(err)
+		glog.Info(err)
 		return err
 	}
 
@@ -32,13 +33,14 @@ func createPidFile(pidfile string) error {
 
 func removePidFile(pidfile string) {
 	if err := os.Remove(pidfile); err != nil {
-		log.Printf("Error removing %s: %s", pidfile, err)
+		glog.Infof("Error removing %s: %s", pidfile, err)
 	}
 }
 
-func daemon(config *config, exitChannel chan bool) {
+// Daemon wrap ListenAndServe with the creation of a pid file
+func Daemon(config *Config, exitChannel chan bool) {
 	if err := createPidFile(config.Pidfile); err != nil {
-		log.Fatal(err)
+		glog.Error(err)
 	}
 	defer removePidFile(config.Pidfile)
 	ListenAndServe(config, exitChannel)

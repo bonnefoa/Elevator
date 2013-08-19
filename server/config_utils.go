@@ -39,7 +39,9 @@ func loadConfigFromFile(path string, obj interface{}, section string) error {
 	return nil
 }
 
-func setFlag(fs *flag.FlagSet, obj interface{}) error {
+// SetFlag fills the given flag set with annotations found
+// in obj structure
+func SetFlag(fs *flag.FlagSet, obj interface{}) error {
 	config := reflect.ValueOf(obj).Elem()
 	configType := config.Type()
 	for i := 0; i < config.NumField(); i++ {

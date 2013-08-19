@@ -4,10 +4,10 @@ import (
 	store "github.com/oleiade/Elevator/store"
 )
 
-type config struct {
+// Config keeps configuration of elevator
+type Config struct {
 	*serverConfig
 	*store.StoreConfig
-	*logConfiguration
 }
 
 type serverConfig struct {
@@ -17,17 +17,10 @@ type serverConfig struct {
 	NumWorkers  int `ini:"numworkers" short:"n" description:"The number of goroutine workers to launch"`
 }
 
-type logConfiguration struct {
-	LogFile  string `ini:"log_file"`
-	LogLevel string `ini:"log_level" short:"l" description:"Sets elevator verbosity"`
-}
-
-func newConfig() *config {
+func newConfig() *Config {
 	storeConfig := store.NewStoreConfig()
 	serverConfig := newServerConfig()
-
-	logConfiguration := newLogConfiguration()
-	return &config{serverConfig, storeConfig, logConfiguration}
+	return &Config{serverConfig, storeConfig}
 }
 
 func newServerConfig() *serverConfig {
@@ -40,14 +33,8 @@ func newServerConfig() *serverConfig {
 	return c
 }
 
-func newLogConfiguration() *logConfiguration {
-	return &logConfiguration{
-		LogFile:  "/var/log/elevator.log",
-		LogLevel: "INFO",
-	}
-}
-
-func confFromFile(path string) (*config, error) {
+// ConfFromFile reads a server config from the given file
+func ConfFromFile(path string) (*Config, error) {
 	conf := newConfig()
 	storageConfig := store.NewStorageEngineConfig()
 	if err := loadConfigFromFile(path, conf.serverConfig, "core"); err != nil {
@@ -57,8 +44,5 @@ func confFromFile(path string) (*config, error) {
 		return conf, err
 	}
 	conf.StoreConfig.Options = storageConfig.ToLeveldbOptions()
-	if err := loadConfigFromFile(path, conf.logConfiguration, "log"); err != nil {
-		return conf, err
-	}
 	return conf, nil
 }
