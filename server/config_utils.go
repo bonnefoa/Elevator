@@ -41,7 +41,7 @@ func loadConfigFromFile(path string, obj interface{}, section string) error {
 
 // SetFlag fills the given flag set with annotations found
 // in obj structure
-func SetFlag(fs *flag.FlagSet, obj interface{}) error {
+func SetFlag(obj interface{}) error {
 	config := reflect.ValueOf(obj).Elem()
 	configType := config.Type()
 	for i := 0; i < config.NumField(); i++ {
@@ -54,13 +54,13 @@ func SetFlag(fs *flag.FlagSet, obj interface{}) error {
 		switch {
 		case structField.Type().Kind() == reflect.Bool:
 			v := structField.Addr().Interface().(*bool)
-			fs.BoolVar(v, shortFlag, structField.Bool(), description)
+			flag.BoolVar(v, shortFlag, structField.Bool(), description)
 		case structField.Type().Kind() == reflect.String:
 			v := structField.Addr().Interface().(*string)
-			fs.StringVar(v, shortFlag, structField.String(), description)
+			flag.StringVar(v, shortFlag, structField.String(), description)
 		case structField.Type().Kind() == reflect.Int:
 			v := structField.Addr().Interface().(*int)
-			fs.IntVar(v, shortFlag, int(structField.Int()), description)
+			flag.IntVar(v, shortFlag, int(structField.Int()), description)
 		}
 	}
 	return nil

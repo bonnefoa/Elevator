@@ -2,44 +2,38 @@ package main
 
 import (
 	"flag"
-	"github.com/golang/glog"
+	"fmt"
 	"github.com/oleiade/Elevator/server"
-	"os"
 )
 
-func checkErr(config *server.Config, fs *flag.FlagSet, err error) {
-	if err != nil {
-		fs.PrintDefaults()
-		if config != nil {
-			glog.Infof("Current config is %s\n", config)
-		}
-		glog.Error(err)
-	}
-}
-
 func main() {
-	fs := flag.NewFlagSet("Elevator flag set", flag.ContinueOnError)
-
-	confFile := fs.String("c",
+    cmdConf := server.NewConfig()
+	server.SetFlag(cmdConf.ServerConfig)
+	confFile := flag.String("c",
 		server.DefaultConfigFile,
-		"Specifies config file path")
-	err := fs.Parse(os.Args[1:])
-	checkErr(nil, fs, err)
+		"Specifies cmdConf file path")
+	flag.Parse()
 
-	config, err := server.ConfFromFile(*confFile)
-	server.SetFlag(fs, config.CoreConfig)
-	checkErr(config, fs, err)
+	fileConfig, err := server.ConfFromFile(*confFile)
+    if err != nil {
+		fmt.Println(err)
+		flag.PrintDefaults()
+    }
 
-	// Reparse to make command line arguments override conf file
-	err = fs.Parse(os.Args[:1])
-	checkErr(config, fs, err)
+    if cmdConf.ServerConfig.Daemon != server.DefaultDaemonMode {
+        fileConfig.ServerConfig.Daemon = cmdConf.ServerConfig.Daemon
+    }
+    if cmdConf.ServerConfig.Endpoint != server.DefaultEndpoint {
+        fileConfig.ServerConfig.Endpoint = cmdConf.ServerConfig.Endpoint
+    }
+    if cmdConf.ServerConfig.NumWorkers != server.DefaultWorkers {
+        fileConfig.ServerConfig.NumWorkers = cmdConf.ServerConfig.NumWorkers
+    }
 
-	checkErr(config, fs, err)
 	exitChannel := server.SetupExitChannel()
-
-	if config.Daemon {
-		server.Daemon(config, exitChannel)
+	if fileConfig.Daemon {
+		server.Daemon(fileConfig, exitChannel)
 	} else {
-		server.ListenAndServe(config, exitChannel)
+		server.ListenAndServe(fileConfig, exitChannel)
 	}
 }
