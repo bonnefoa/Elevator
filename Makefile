@@ -34,16 +34,11 @@ ELEVATOR_CLI_MAIN := $(ELEVATOR_DIR)/cli
 ELEVATOR_CLI_BIN_RELATIVE := bin/cli
 ELEVATOR_CLI_BIN := $(CURDIR)/$(ELEVATOR_CLI_BIN_RELATIVE)
 
-SRCS = $(wildcard **/*.go)
-
 .PHONY: all clean test
 
 all: $(ELEVATOR_BIN) $(ELEVATOR_CLI_BIN) 
 
-$(ELEVATOR_BIN): $(ELEVATOR_DIR)
-	# Specifically install gozmq zmq3 compatible version
-	@go get -tags zmq_3_x github.com/alecthomas/gozmq
-
+$(ELEVATOR_BIN): $(ELEVATOR_DIR) store/request.pb.go server/response.pb.go
 	# Proceed to elevator build
 	@(mkdir -p  $(dir $@))
 	@(cd $(ELEVATOR_MAIN); go get $(GO_OPTIONS); go build $(GO_OPTIONS) $(BUILD_OPTIONS) -o $@)
@@ -54,7 +49,7 @@ $(ELEVATOR_CLI_BIN): $(ELEVATOR_DIR)
 	@(cd $(ELEVATOR_CLI_MAIN); go get $(GO_OPTIONS); go build $(GO_OPTIONS) $(BUILD_OPTIONS) -o $@)
 	@echo $(ELEVATOR_CLI_BIN_RELATIVE) is created.
 
-$(ELEVATOR_DIR): $(SRCS)
+$(ELEVATOR_DIR): 
 	@mkdir -p $(dir $@)
 	@ln -sf $(CURDIR)/ $@
 
@@ -75,3 +70,6 @@ bench: all
 
 fmt:
 	@gofmt -s -l -w .
+
+%.pb.go:
+	protoc --go_out=. $*.proto
