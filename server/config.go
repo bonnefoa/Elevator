@@ -11,6 +11,7 @@ type Config struct {
 	*store.StoreConfig
 }
 
+// ServerConfig stores server specific configuration
 type ServerConfig struct {
 	Daemon     bool   `ini:"daemonize" short:"d" description:"Launches elevator as a daemon"`
 	Endpoint   string `ini:"endpoint" short:"e" description:"Endpoint to bind elevator to"`
@@ -18,6 +19,7 @@ type ServerConfig struct {
 	NumWorkers int    `ini:"numworkers" short:"n" description:"The number of goroutine workers to launch"`
 }
 
+// NewConfig creates a new instance of server config with default parameters
 func NewConfig() *Config {
 	storeConfig := store.NewStoreConfig()
 	serverConfig := newServerConfig()
