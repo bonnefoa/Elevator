@@ -256,12 +256,21 @@ func (store *DbStore) HandleDbRequest(r *DbRequest) ([][]byte, error) {
     if !foundDb {
         return nil, NoSuchDbUIDError(dbUID)
     }
+    if db.status  == statusUnmounted {
+        err := db.Mount(store.Options)
+        if err != nil {
+            return nil, err
+        }
+    }
     res, err := db.processRequest(r)
     return res, err
 }
 
 // HandleRequest fetch db from dbname and send dbrequest to the db
 func (store *DbStore) HandleRequest(r *Request) (res [][]byte, err error) {
+    if glog.V(4) {
+        glog.Infof("Handling request %s", r)
+    }
     switch *r.Command {
     case Request_DB:
         res, err = store.HandleDbRequest(r.DbRequest)
