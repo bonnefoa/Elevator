@@ -7,99 +7,47 @@ import (
 )
 
 
-func putRequest(key string, val string) DbRequest {
-    r := DbRequest{}
-    cmd := DbRequest_PUT
-    r.Command = &cmd
-    r.Put = &PutRequest{[]byte(key), []byte(val), nil}
-    return r
-}
-
-func getRequest(key string) DbRequest {
-    r := DbRequest{}
-    cmd := DbRequest_GET
-    r.Command = &cmd
-    r.Get = &GetRequest{[]byte(key), nil}
-    return r
-}
-
-func deleteRequest(key string) DbRequest {
-    r := DbRequest{}
-    cmd := DbRequest_DELETE
-    r.Command = &cmd
-    r.Delete = &DeleteRequest{[]byte(key), nil}
-    return r
-}
-
-func mgetRequest(keys ... string) DbRequest {
-    r := DbRequest{}
-    cmd := DbRequest_MGET
-    r.Command = &cmd
-    r.Mget = &MgetRequest{ToBytes(keys...), nil}
-    return r
-}
-
-func rangeRequest(start string, end string) DbRequest {
-    r := DbRequest{}
-    cmd := DbRequest_RANGE
-    r.Command = &cmd
-    r.Range = &RangeRequest{[]byte(start), []byte(end), nil}
-    return r
-}
-
-func sliceRequest(start string, limit int32) DbRequest {
-    r := DbRequest{}
-    cmd := DbRequest_SLICE
-    r.Command = &cmd
-    r.Slice = &SliceRequest{[]byte(start), &limit, nil}
-    return r
-}
-
-func batchRequest(putKeys [][]byte, putsValues[][]byte,
-            deleteKeys [][]byte) DbRequest {
-    r := DbRequest{}
-    batchPuts := make([]*BatchPut, len(putKeys))
-    for i, k := range putKeys {
-        batchPuts[i] = &BatchPut{k, putsValues[i], nil}
-    }
-    batchDeletes := make([]*BatchDelete, len(deleteKeys))
-    for i, k := range deleteKeys {
-        batchDeletes[i] = &BatchDelete{k, nil}
-    }
-    cmd := DbRequest_BATCH
-    r.Command = &cmd
-    r.Batch = & BatchRequest { batchPuts, batchDeletes, nil }
-    return r
-}
+var (
+    key1 = []byte("key1")
+    key2 = []byte("key2")
+    key3 = []byte("key3")
+    val1 = []byte("val1")
+    val2 = []byte("val2")
+    val3 = []byte("val3")
+    batch1 = []byte("batch1")
+    batch2 = []byte("batch2")
+    batch3 = []byte("batch3")
+)
 
 var testOperationDatas = []struct {
     r DbRequest
     expectedError   error
     data           [][]byte
 }{
-    {getRequest("key"), KeyError("key"), nil},
+    {NewGetRequest(TestDb, key1), KeyError(key1), nil},
 
-    {putRequest("key", "val"), nil, nil},
-    {putRequest("key2", "val2"), nil, nil},
-    {putRequest("key3", "val3"), nil, nil},
+    {NewPutRequest(TestDb, key1, val1), nil, nil},
+    {NewPutRequest(TestDb,key2,val2), nil, nil},
+    {NewPutRequest(TestDb, key3, val3), nil, nil},
 
-    {getRequest("key"), nil, ToBytes("val")},
-    {mgetRequest("key", "key2"), nil, ToBytes("val", "val2")},
-    {rangeRequest("key", "key3"), nil,
-        ToBytes("key", "val", "key2", "val2", "key3", "val3")},
+    {NewGetRequest(TestDb, key1), nil, [][]byte{val1}},
+    {NewMgetRequest(TestDb, key1,key2), nil, [][]byte{val1,val2}},
+    {NewRangeRequest(TestDb, key1, key3), nil,
+        [][]byte{key1, val1, key2, val2, key3, val3}},
 
-	{sliceRequest("key", 2), nil,
-		ToBytes("key", "val", "key2", "val2")},
+	{NewSliceRequest(TestDb, key1, 2), nil,
+		[][]byte{key1, val1,key2,val2}},
 
-	{deleteRequest("key"), nil, nil},
-	{getRequest("key"), KeyError("key"), nil},
+	{NewDeleteRequest(TestDb, key1), nil, nil},
+	{NewGetRequest(TestDb, key1), KeyError(key1), nil},
 
-	{batchRequest(ToBytes("batch1", "batch2"), ToBytes("val1", "val2"), nil),
+	{NewBatchRequest(TestDb, [][]byte{batch1, batch2}, [][]byte{val1,val2}, nil),
         nil, nil},
-	{getRequest("batch1"), nil, ToBytes("val1")},
+	{NewGetRequest(TestDb, batch1), nil, [][]byte{val1}},
 
-	{batchRequest(ToBytes("batch3"), ToBytes("val3"), ToBytes("batch3")), nil, nil},
-	{getRequest("batch3"), KeyError("batch3"), nil},
+	{NewBatchRequest(TestDb, [][]byte{batch3}, [][]byte{val3},
+        [][]byte{batch3}), nil, nil},
+	{NewGetRequest(TestDb, batch3), KeyError(batch3), nil},
 }
 
 func TestOperations(t *testing.T) {
