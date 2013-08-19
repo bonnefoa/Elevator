@@ -60,11 +60,11 @@ func (store *DbStore) Load() error {
 
 // List enumerates  all the databases
 // in DbStore
-func (store *DbStore) List() []string {
-       dbNames := make([]string, len(store.Container))
+func (store *DbStore) List() [][]byte {
+       dbNames := make([][]byte, len(store.Container))
        i := 0
        for _, db := range store.Container {
-               dbNames[i] = db.Name
+               dbNames[i] = []byte(db.Name)
                i++
        }
        return dbNames
@@ -208,7 +208,9 @@ func (store *DbStore) Exists(dbName string) (bool, error) {
 
 // UnmountAll Umount all db in datastore
 func (store *DbStore) UnmountAll() {
-	glog.Info("Closing dbstore")
+    if glog.V(1) {
+        glog.Info("Closing dbstore")
+    }
 	for _, db := range store.Container {
 		if db.status == statusMounted {
 			db.Umount()
@@ -218,38 +220,53 @@ func (store *DbStore) UnmountAll() {
 
 // HandleStoreRequest process store incoming request
 func (store *DbStore) HandleStoreRequest(r *StoreRequest) (res [][]byte, err error) {
+    if r == nil {
+        return nil, MissingParameterError("storeRequest")
+    }
     if *r.Command != StoreRequest_LIST && r.DbName == nil {
-        return nil, MissingDbNameError(*r.Command)
+        return nil, MissingParameterError("dbName")
     }
 	switch *r.Command {
 	case StoreRequest_CREATE:
         err = store.Create(*r.DbName)
     case StoreRequest_DROP:
         err = store.Drop(*r.DbName)
+    case StoreRequest_LIST:
+        res = store.List()
 	}
     return
 }
 
-//// HandleRequest redirect and execute given request as a db operation or a store operation
-//func (store *DbStore) HandleRequest(request *Request) ([][]byte, error) {
-	//switch request.requestType {
-	//case typeStore:
-		//res, err := storeCommands[request.Command](store, request.Args)
-		//return res, err
-	//case typeDb:
-		//db, foundDb := store.Container[request.DbUID]
-		//if !foundDb {
-			//return nil, NoSuchDbUIDError(request.DbUID)
-		//}
-		//if db.status == statusUnmounted {
-			//err := db.Mount(store.Options)
-			//if err != nil {
-				//return nil, err
-			//}
-		//}
-		//db.requestChan <- request
-        //result := <-db.responseChan
-		//return result.Data, result.Err
-	//}
-	//return nil, UnknownCommand(request.Command)
-//}
+// HandleDbRequest fetch db from dbname and send dbrequest to the db
+func (store *DbStore) HandleDbRequest(r *DbRequest) ([][]byte, error) {
+    if r == nil {
+        return nil, MissingParameterError("dbRequest")
+    }
+    if r.DbName == nil {
+        if glog.V(6) {
+            glog.Info("Missing dbname parameter in request", r)
+        }
+        return nil, MissingParameterError("DbName")
+    }
+    dbUID, foundDb := store.nameToUID[*r.DbName]
+    if !foundDb {
+        return nil, NoSuchDbError(*r.DbName)
+    }
+    db, foundDb := store.Container[dbUID]
+    if !foundDb {
+        return nil, NoSuchDbUIDError(dbUID)
+    }
+    res, err := db.processRequest(r)
+    return res, err
+}
+
+// HandleRequest fetch db from dbname and send dbrequest to the db
+func (store *DbStore) HandleRequest(r *Request) (res [][]byte, err error) {
+    switch *r.Command {
+    case Request_DB:
+        res, err = store.HandleDbRequest(r.DbRequest)
+    case Request_STORE:
+        res, err = store.HandleStoreRequest(r.StoreRequest)
+    }
+    return
+}
