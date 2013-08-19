@@ -1,7 +1,6 @@
 package store;
 
 message StoreRequest {
-    optional string dbName = 1;
     enum Command {
         CONNECT = 0;
         CREATE = 1;
@@ -9,6 +8,7 @@ message StoreRequest {
         LIST = 3;
         REPAIR = 4;
     }
+    optional string dbName = 1;
     required Command command = 2;
 }
 
@@ -59,7 +59,6 @@ message DbResponse {
 }
 
 message DbRequest {
-    optional string dbName = 1;
     enum Command {
         GET = 0;
         PUT = 1;
@@ -70,6 +69,7 @@ message DbRequest {
         MGET = 6;
         PING = 7;
     }
+    optional string dbName = 1;
     required Command command = 2;
     optional GetRequest get = 3;
     optional PutRequest put = 4;
@@ -78,4 +78,14 @@ message DbRequest {
     optional MgetRequest mget = 7;
     optional BatchRequest batch = 8;
     optional DeleteRequest delete = 9;
+}
+
+message Request {
+    enum Command {
+        DB = 0;
+        STORE = 1;
+    }
+    required Command command = 1;
+    optional DbRequest dbRequest = 2;
+    optional StoreRequest storeRequest = 3;
 }
