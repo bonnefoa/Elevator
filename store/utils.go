@@ -1,8 +1,6 @@
 package store
 
 import (
-	"github.com/ugorji/go/codec"
-	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -44,32 +42,6 @@ func btoi(b bool) int {
 		return 1
 	}
 	return 0
-}
-
-var msgpackHandler = codec.MsgpackHandle{}
-
-// PackInto method fulfills serializes a value
-// into a msgpacked response message
-func PackInto(v interface{}, buffer io.Writer) error {
-	prtV := &v
-	enc := codec.NewEncoder(buffer, &msgpackHandler)
-	err := enc.Encode(prtV)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// UnpackFrom method fulfills a value from a received
-// serialized request message.
-func UnpackFrom(v interface{}, data io.Reader) error {
-	prtV := &v
-	dec := codec.NewDecoder(data, &msgpackHandler)
-	err := dec.Decode(prtV)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // SetupExitChannel creates a channel which received a value on
