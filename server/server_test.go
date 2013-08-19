@@ -43,13 +43,13 @@ func cleanConfTemp(c *store.StoreConfig) {
 
 func getTestConf() *Config {
 	tempDir, _ := ioutil.TempDir("/tmp", "elevator")
-	config := newConfig()
+	config := NewConfig()
 
 	config.StoreConfig.CoreConfig.StorePath = path.Join(tempDir, "store")
 	config.StoreConfig.CoreConfig.StoragePath = tempDir
 
-	config.serverConfig.Endpoint = TestEndpoint
-	config.serverConfig.Pidfile = path.Join(tempDir, "elevator.pid")
+	config.ServerConfig.Endpoint = TestEndpoint
+	config.ServerConfig.Pidfile = path.Join(tempDir, "elevator.pid")
 
 	return config
 }
