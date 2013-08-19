@@ -9,8 +9,12 @@ func TestDbstoreList(t *testing.T) {
     env := setupEnv(t)
     defer env.destroy()
 
-    lstDbs := env.DbStore.List()
-    expected := []string{TestDb}
+    dbName := TestDb
+    cmd := StoreRequest_LIST
+    req := &StoreRequest{&dbName, &cmd, nil}
+
+    lstDbs, _ := env.HandleStoreRequest(req)
+    expected := [][]byte{[]byte(TestDb)}
     if !reflect.DeepEqual(lstDbs, expected) {
         t.Fatal("The db store should contains only [test_db]", lstDbs)
     }
