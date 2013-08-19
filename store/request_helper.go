@@ -4,6 +4,14 @@ func newStoreRequest(dbName string, cmd StoreRequest_Command) StoreRequest {
 	return StoreRequest{&dbName, &cmd, nil}
 }
 
+// NewStoreListRequest creates a store request
+func NewStoreListRequest() Request {
+	cmd := Request_STORE
+	storeCmd := StoreRequest_LIST
+	r := &StoreRequest{nil, &storeCmd, nil}
+	return Request{Command: &cmd, StoreRequest: r}
+}
+
 // NewStoreRequest creates a store request
 func NewStoreRequest(dbName string, storeCmd StoreRequest_Command) Request {
 	cmd := Request_STORE
