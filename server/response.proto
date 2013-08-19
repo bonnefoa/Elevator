@@ -1,0 +1,21 @@
+package server;
+
+message Response {
+    enum Status {
+        SUCCESS = 0;
+        TYPE_ERROR = 1;
+        KEY_ERROR = 2;
+        VALUE_ERROR = 3;
+        INDEX_ERROR = 4;
+        RUNTIME_ERROR = 5;
+        OS_ERROR = 6;
+        DATABASE_ERROR = 7;
+        SIGNAL_ERROR = 8;
+        REQUEST_ERROR = 9;
+        UNKNOWN_ERROR = 10;
+        UNKOWN_COMMAND = 11;
+    }
+    required Status status = 1;
+    repeated bytes data = 2;
+    optional string errorMsg = 3;
+}
