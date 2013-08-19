@@ -26,9 +26,9 @@ type RelativePathError string
 type NoSuchPathError string
 // DatabaseExistsError happens when creating an already present database
 type DatabaseExistsError string
-// MissingDbNameError happens when a request needs dbname parameter
-type MissingDbNameError string
-// DbAlreadyMounted happens when a trying to mount an already mounted db
+// MissingParameterError happens when a request has not a required parameter
+type MissingParameterError string
+// DbAlreadyMounted happens when trying to mount an already mounted db
 type DbAlreadyMounted string
 // DbAlreadyUnmounted happens when a trying to unmount an already unmounted db
 type DbAlreadyUnmounted string
@@ -65,8 +65,8 @@ func (c DatabaseExistsError) Error() string {
 	return fmt.Sprintf("Database %s already exists", string(c))
 }
 
-func (c MissingDbNameError) Error() string {
-	return fmt.Sprintf("DbName parameter is needed for command %s", string(c))
+func (c MissingParameterError) Error() string {
+	return fmt.Sprintf("%s parameter missing", string(c))
 }
 
 func (c DbAlreadyMounted) Error() string {
