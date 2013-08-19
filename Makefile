@@ -34,6 +34,8 @@ ELEVATOR_CLI_MAIN := $(ELEVATOR_DIR)/cli
 ELEVATOR_CLI_BIN_RELATIVE := bin/cli
 ELEVATOR_CLI_BIN := $(CURDIR)/$(ELEVATOR_CLI_BIN_RELATIVE)
 
+SRCS = $(wildcard **/*.go)
+
 .PHONY: all clean test
 
 all: $(ELEVATOR_BIN) $(ELEVATOR_CLI_BIN) 
@@ -49,7 +51,7 @@ $(ELEVATOR_CLI_BIN): $(ELEVATOR_DIR)
 	@(cd $(ELEVATOR_CLI_MAIN); go get $(GO_OPTIONS); go build $(GO_OPTIONS) $(BUILD_OPTIONS) -o $@)
 	@echo $(ELEVATOR_CLI_BIN_RELATIVE) is created.
 
-$(ELEVATOR_DIR): 
+$(ELEVATOR_DIR): $(SRCS)
 	@mkdir -p $(dir $@)
 	@ln -sf $(CURDIR)/ $@
 
