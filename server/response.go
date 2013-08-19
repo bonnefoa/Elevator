@@ -1,71 +1,30 @@
 package server
 
 import (
-	"fmt"
 	store "github.com/oleiade/Elevator/store"
 )
 
-// Response represents the response send
-// back by the server
-type Response struct {
-	Status ResponseStatus
-	ErrMsg string
-	Data   [][]byte
-	id     [][]byte
-}
-
-// String represents the Response as a normalized string
-func (r *Response) String() string {
-	if r == nil {
-		return "<Response nil>"
-	}
-	return fmt.Sprintf("<Response status:%d err_msg:%s data:%s",
-		r.Status, r.ErrMsg, r.Data)
-}
-
-func responseFromError(id [][]byte, err error) *Response {
+func responseFromError(err error) *Response {
 	status := errorToStatusCode(err)
-	return &Response{
-		Status: status,
-		ErrMsg: err.Error(),
-		id:     id,
-	}
+    msg := err.Error()
+    return &Response{ Status: &status, ErrorMsg:&msg }
 }
 
-// ResponseStatus identifies status code send in the response
-type ResponseStatus int
-
-// Response status available
-const (
-    Success       ResponseStatus = iota
-    TypeError
-    KeyError
-    ValueError
-    IndexError
-    RuntimeError
-    OsError
-    DatabaseError
-    SignalError
-    RequestError
-    UnknownError
-    UnkownCommand
-)
-
-func errorToStatusCode(err error) ResponseStatus {
+func errorToStatusCode(err error) Response_Status {
 	if err == nil {
-		return Success
+		return Response_SUCCESS
 	}
 	switch err.(type) {
 	case store.KeyError:
-		return KeyError
+		return Response_KEY_ERROR
 	case store.ValueError:
-		return ValueError
+		return Response_VALUE_ERROR
 	case store.DatabaseError:
-		return DatabaseError
+		return Response_DATABASE_ERROR
 	case store.RequestError:
-		return RequestError
+		return Response_REQUEST_ERROR
 	case store.UnknownCommand:
-		return UnkownCommand
+		return Response_UNKOWN_COMMAND
 	}
-	return UnknownError
+	return Response_UNKNOWN_ERROR
 }
