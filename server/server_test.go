@@ -77,7 +77,7 @@ func setupEnv(t Tester) *Env {
 	}
 	env.config = getTestConf()
 	env.exitChannel = make(chan bool)
-	go ListenAndServe(env.config, env.exitChannel, 5)
+	go ListenAndServe(env.config, env.exitChannel)
 
 	// Create base
 	createReq := store.NewStoreRequest(TestDb, store.StoreRequest_CREATE)
