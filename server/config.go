@@ -14,6 +14,7 @@ type serverConfig struct {
 	Daemon   bool   `ini:"daemonize" short:"d" description:"Launches elevator as a daemon"`
 	Endpoint string `ini:"endpoint" short:"e" description:"Endpoint to bind elevator to"`
 	Pidfile  string `ini:"pidfile"`
+	NumWorkers  int `ini:"numworkers" short:"n" description:"The number of goroutine workers to launch"`
 }
 
 type logConfiguration struct {
@@ -34,6 +35,7 @@ func newServerConfig() *serverConfig {
 		Daemon:   false,
 		Endpoint: DefaultEndpoint,
 		Pidfile:  "/var/run/elevator.pid",
+        NumWorkers: 5,
 	}
 	return c
 }
