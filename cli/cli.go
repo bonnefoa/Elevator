@@ -9,8 +9,8 @@ import (
 	"github.com/oleiade/Elevator/server"
 	"github.com/oleiade/Elevator/store"
 	"os"
+	"strconv"
 	"strings"
-    "strconv"
 )
 
 var historyFile = "$HOME/.elevator_history"
@@ -68,40 +68,40 @@ func storeRequestFromString(storeCmd store.StoreRequest_Command, split []string)
 }
 
 func (c *cliState) dbRequestFromString(dbCmd store.DbRequest_Command, split []string) (*store.DbRequest, error) {
-    r := &store.DbRequest{Command: &dbCmd, DbName:c.currentDb}
+	r := &store.DbRequest{Command: &dbCmd, DbName: c.currentDb}
 	switch dbCmd {
 	case store.DbRequest_GET:
 		if len(split) < 1 {
 			return nil, errors.New("Expected a key")
 		}
-        r.Get = &store.GetRequest{Key:[]byte(split[0])}
-    case store.DbRequest_PUT:
+		r.Get = &store.GetRequest{Key: []byte(split[0])}
+	case store.DbRequest_PUT:
 		if len(split) < 2 {
 			return nil, errors.New("Expected a key and a value")
 		}
-        r.Put = &store.PutRequest{Key:[]byte(split[0]), Value:[]byte(split[1])}
-    case store.DbRequest_DELETE:
+		r.Put = &store.PutRequest{Key: []byte(split[0]), Value: []byte(split[1])}
+	case store.DbRequest_DELETE:
 		if len(split) < 1 {
 			return nil, errors.New("Expected a key")
 		}
-        r.Delete = &store.DeleteRequest{Key:[]byte(split[0])}
-    case store.DbRequest_RANGE:
+		r.Delete = &store.DeleteRequest{Key: []byte(split[0])}
+	case store.DbRequest_RANGE:
 		if len(split) < 2 {
 			return nil, errors.New("Expected a start key and an end key")
 		}
-        r.Range = &store.RangeRequest{Start:[]byte(split[0]), End:[]byte(split[1])}
-    case store.DbRequest_SLICE:
+		r.Range = &store.RangeRequest{Start: []byte(split[0]), End: []byte(split[1])}
+	case store.DbRequest_SLICE:
 		if len(split) < 2 {
 			return nil, errors.New("Expected a start key and a limit")
 		}
-        limit, err := strconv.Atoi(split[1])
-        if err != nil {
-            return nil, err
-        }
-        limit32 := int32(limit)
-        r.Slice = &store.SliceRequest{Start:[]byte(split[0]), Limit:&limit32}
-    case store.DbRequest_MGET:
-        r.Mget = &store.MgetRequest{Keys:store.ToBytes(split...)}
+		limit, err := strconv.Atoi(split[1])
+		if err != nil {
+			return nil, err
+		}
+		limit32 := int32(limit)
+		r.Slice = &store.SliceRequest{Start: []byte(split[0]), Limit: &limit32}
+	case store.DbRequest_MGET:
+		r.Mget = &store.MgetRequest{Keys: store.ToBytes(split...)}
 	}
 	return r, nil
 }
@@ -169,29 +169,29 @@ func (c *cliState) useDb(str string) error {
 }
 
 func (c *cliState) getLine() (string, bool) {
-    prompt := "> "
-    if c.currentDb != nil {
-        prompt = fmt.Sprintf("(%s)> ", *c.currentDb)
-    }
-    line, err := linenoise.Line(prompt)
-    line = strings.TrimSpace(line)
-    if err != nil {
-        if err == linenoise.KillSignalError {
-            return "", true
-        }
-        fmt.Printf("Unexpected error : %s\n", err)
-    }
-    isQuit := strings.ToUpper(line) == "QUIT"
-    return line, isQuit
+	prompt := "> "
+	if c.currentDb != nil {
+		prompt = fmt.Sprintf("(%s)> ", *c.currentDb)
+	}
+	line, err := linenoise.Line(prompt)
+	line = strings.TrimSpace(line)
+	if err != nil {
+		if err == linenoise.KillSignalError {
+			return "", true
+		}
+		fmt.Printf("Unexpected error : %s\n", err)
+	}
+	isQuit := strings.ToUpper(line) == "QUIT"
+	return line, isQuit
 }
 
 func (c *cliState) loop() {
 	for {
-        // Fetch line from cli
-        line, isQuit := c.getLine()
-        if isQuit {
-            return
-        }
+		// Fetch line from cli
+		line, isQuit := c.getLine()
+		if isQuit {
+			return
+		}
 
 		request, err := c.parseRequestFromLine(line)
 		if err != nil {
@@ -199,9 +199,9 @@ func (c *cliState) loop() {
 			continue
 		}
 		linenoise.AddHistory(line)
-        if request == nil {
-            continue
-        }
+		if request == nil {
+			continue
+		}
 		err = server.SendRequest(request, c.socket)
 		if err != nil {
 			fmt.Printf("Error on send request %q\n", err)
