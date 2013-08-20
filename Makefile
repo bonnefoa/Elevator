@@ -74,4 +74,5 @@ fmt:
 	@gofmt -s -l -w .
 
 %.pb.go:
-	protoc --go_out=. $*.proto
+	@go get -u code.google.com/p/goprotobuf/{proto,protoc-gen-go}
+	@protoc --go_out=. $*.proto
