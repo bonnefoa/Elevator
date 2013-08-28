@@ -1,5 +1,9 @@
 package store
 
+import (
+	"github.com/golang/glog"
+)
+
 func newStoreRequest(dbName string, cmd StoreRequest_Command) StoreRequest {
 	return StoreRequest{&dbName, &cmd, nil}
 }
@@ -89,4 +93,27 @@ func NewBatchRequest(dbName string, putKeys [][]byte, putsValues [][]byte,
 	r.Command = &cmd
 	r.Batch = &BatchRequest{batchPuts, batchDeletes, nil}
 	return r
+}
+
+func CheckDbRequest(r *DbRequest) error {
+    if r == nil {
+        return MissingParameterError("dbRequest")
+    }
+    if r.DbName == nil {
+        if glog.V(6) {
+            glog.Info("Missing dbname parameter in request", r)
+        }
+        return MissingParameterError("DbName")
+    }
+    return nil
+}
+
+func CheckStoreRequest(r *StoreRequest) error {
+    if r == nil {
+        return MissingParameterError("storeRequest")
+    }
+    if *r.Command != StoreRequest_LIST && r.DbName == nil {
+        return MissingParameterError("dbName")
+    }
+    return nil
 }
