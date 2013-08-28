@@ -39,17 +39,7 @@ func (w *worker) processRequest(msg *zmq.MessagePart) *Response {
 		return responseFromError(err)
 	}
 	res, err := w.DbStore.HandleRequest(request)
-	if err != nil {
-		return responseFromError(err)
-	}
-	status := Response_SUCCESS
-	errMsg := ""
-	response := &Response{
-		Status:   &status,
-		Data:     res,
-		ErrorMsg: &errMsg,
-	}
-    return response
+    return buildResponse(res, err)
 }
 
 // destroyWorker clean up

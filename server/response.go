@@ -4,7 +4,7 @@ import (
 	store "github.com/oleiade/Elevator/store"
 )
 
-func buildResponse(err error, result [][]byte) *Response {
+func buildResponse(result [][]byte, err error) *Response {
     if err != nil {
         return responseFromError(err)
     }
