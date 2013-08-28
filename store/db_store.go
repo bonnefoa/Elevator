@@ -95,6 +95,9 @@ func (store *DbStore) Mount(dbUID string) error {
 	if !present {
 		return NoSuchDbError(dbUID)
     }
+    if db.status == statusMounted {
+        return nil
+    }
     err := db.Mount(store.StoreConfig.Options)
     if err != nil {
         return DatabaseError(err)
@@ -239,14 +242,9 @@ func (store *DbStore) HandleStoreRequest(r *StoreRequest) (res [][]byte, err err
 
 // HandleDbRequest fetch db from dbname and send dbrequest to the db
 func (store *DbStore) HandleDbRequest(r *DbRequest) ([][]byte, error) {
-    if r == nil {
-        return nil, MissingParameterError("dbRequest")
-    }
-    if r.DbName == nil {
-        if glog.V(6) {
-            glog.Info("Missing dbname parameter in request", r)
-        }
-        return nil, MissingParameterError("DbName")
+    err := CheckDbRequest(r)
+    if err != nil {
+        return nil, err
     }
     dbUID, foundDb := store.nameToUID[*r.DbName]
     if !foundDb {
@@ -256,11 +254,9 @@ func (store *DbStore) HandleDbRequest(r *DbRequest) ([][]byte, error) {
     if !foundDb {
         return nil, NoSuchDbUIDError(dbUID)
     }
-    if db.status  == statusUnmounted {
-        err := db.Mount(store.Options)
-        if err != nil {
-            return nil, err
-        }
+    err = db.Mount(store.Options)
+    if err != nil {
+        return nil, err
     }
     res, err := db.processRequest(r)
     return res, err
