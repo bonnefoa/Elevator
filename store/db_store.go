@@ -223,11 +223,9 @@ func (store *DbStore) UnmountAll() {
 
 // HandleStoreRequest process store incoming request
 func (store *DbStore) HandleStoreRequest(r *StoreRequest) (res [][]byte, err error) {
-    if r == nil {
-        return nil, MissingParameterError("storeRequest")
-    }
-    if *r.Command != StoreRequest_LIST && r.DbName == nil {
-        return nil, MissingParameterError("dbName")
+    err = CheckStoreRequest(r)
+    if err != nil {
+        return
     }
 	switch *r.Command {
 	case StoreRequest_CREATE:
