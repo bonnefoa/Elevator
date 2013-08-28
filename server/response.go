@@ -4,6 +4,24 @@ import (
 	store "github.com/oleiade/Elevator/store"
 )
 
+func buildResponse(err error, result [][]byte) *Response {
+    if err != nil {
+        return responseFromError(err)
+    }
+    return responseFromResult(result)
+}
+
+func responseFromResult(result [][]byte) *Response {
+	status := Response_SUCCESS
+	errMsg := ""
+	response := &Response{
+		Status:   &status,
+		Data:     result,
+		ErrorMsg: &errMsg,
+	}
+    return response
+}
+
 func responseFromError(err error) *Response {
 	status := errorToStatusCode(err)
     msg := err.Error()
